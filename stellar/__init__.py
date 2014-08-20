@@ -28,6 +28,18 @@ def send_payment(secret, account_id, destination, amount):
 	submit_transaction(tx_blob)
 
 
+def set_regular_key(secret, account_id, regular_key):
+
+	tx_json = {
+		'TransactionType':	'SetRegularKey',
+		'Account':			account_id,
+		'RegularKey':		regular_key,
+	}
+
+	tx_blob = sign_transaction(secret, tx_json)
+	submit_transaction(tx_blob)
+
+
 def _parse_amount(m):
 
 	if not '.' in m:

@@ -11,6 +11,7 @@ field_map = {
 	'DestinationTag':	(2, 14),
 	'Fee':				(6, 8),
 	'Flags':			(2, 2),
+	'RegularKey':		(8, 8),
 	'Sequence':			(2, 4),
 	'SigningPubKey':	(7, 3),
 	'TransactionType':	(1, 2),
@@ -19,6 +20,7 @@ field_map = {
 
 TRANSACTION_TYPES = {
 	'Payment': 			0,
+	'SetRegularKey':	5,
 }
 
 #-------------------------------------------------------------------------------
