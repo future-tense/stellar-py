@@ -8,6 +8,7 @@ field_map = {
 	'Account':			(8, 1),
 	'Amount':			(6, 1),
 	'Destination':		(8, 3),
+	'DestinationTag':	(2, 14),
 	'Fee':				(6, 8),
 	'Flags':			(2, 2),
 	'Sequence':			(2, 4),

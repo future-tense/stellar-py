@@ -25,11 +25,15 @@ def send(secret, account_id, destination, amount):
 	amount = parse_amount(amount)
 
 	tx_json = {
+		'TransactionType': 	'Payment',
 		'Account': 			account_id,
-		'Destination': 		destination,
 		'Amount': 			amount,
-		'TransactionType': 	'Payment'
 	}
+
+	d = destination.split("?dt=")
+	if len(d) == 2:
+		tx_json['DestinationTag'] = int(d[1])
+	tx_json['Destination'] = d[0]
 
 	tx_blob = stellar.sign_transaction(secret, tx_json)
 	stellar.submit_transaction(tx_blob)
