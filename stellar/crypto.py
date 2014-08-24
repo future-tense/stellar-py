@@ -1,7 +1,6 @@
 
 import hashlib
-import pysodium
-
+import ed25519
 
 def sha512half(s):
 	m = hashlib.sha512()
@@ -35,15 +34,15 @@ def sha256hash(s):
 	return hash2
 
 
-def sign(message, key):
-	return pysodium.crypto_sign(message, key)[0:64]
+def sign(message, seed):
+	return ed25519.SigningKey(seed).sign(message)[0:64]
 
 
 def get_private_key(seed):
-	_, sk = pysodium.crypto_sign_seed_keypair(seed)
-	return sk
+	pk = ed25519.SigningKey(seed).get_verifying_key().vk_s
+	return seed+pk
 
 
 def get_public_key(seed):
-	pk, _ = pysodium.crypto_sign_seed_keypair(seed)
+	pk = ed25519.SigningKey(seed).get_verifying_key().vk_s
 	return pk
