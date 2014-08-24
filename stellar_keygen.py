@@ -2,7 +2,6 @@
 import stellar
 import sys
 
-
 def main():
 
 	if len(sys.argv) > 1:
@@ -13,7 +12,6 @@ def main():
 
 	print 'Account ID: ', stellar.AccountID.from_seed(seed).to_human()
 	print 'Seed:       ', seed.to_human()
-	print 'Public Key: ', stellar.Public.from_seed(seed).to_human()
 
 if __name__ == '__main__':
 	main()
