@@ -26,9 +26,9 @@ def send_payment(secret, account, destination, amount):
 		tx_json['DestinationTag'] = int(d[1])
 	tx_json['Destination'] = _translate_account_id(d[0])
 
+	complete_transaction_fields(tx_json)
 	tx_blob = sign_transaction(secret, tx_json)
 	submit_transaction(tx_blob)
-
 
 
 def set_regular_key(secret, account, regular_key):
@@ -39,6 +39,7 @@ def set_regular_key(secret, account, regular_key):
 		'RegularKey':		_translate_account_id(regular_key),
 	}
 
+	complete_transaction_fields(tx_json)
 	tx_blob = sign_transaction(secret, tx_json)
 	submit_transaction(tx_blob)
 

@@ -28,16 +28,18 @@ def sign_transaction_blob(seed, blob):
 	return signature
 
 
+def complete_transaction_fields(tx_json):
+	sequence = ledger.get_sequence_number(tx_json['Account'])
+	tx_json['Flags'] 		 = tfFullyCanonicalSig
+	tx_json['Sequence'] 	 = sequence
+	tx_json['Fee'] 			 = 10
+
+
 def sign_transaction(secret, tx_json):
 
 	seed = address.Seed.from_human(secret)
 	pubkey = address.Public.from_seed(seed)
-	sequence = ledger.get_sequence_number(tx_json['Account'])
-
-	tx_json['Flags'] 		 = tfFullyCanonicalSig
 	tx_json['SigningPubKey'] = pubkey.data
-	tx_json['Sequence'] 	 = sequence
-	tx_json['Fee'] 			 = 10
 
 	blob = serialize.serialize_json(tx_json)
 	signature = sign_transaction_blob(seed, blob)
