@@ -1,3 +1,4 @@
+#!/usr/bin/python
 
 import stellar
 import sys
