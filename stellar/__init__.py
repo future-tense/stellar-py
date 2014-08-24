@@ -4,7 +4,6 @@ from ledger import *
 from transaction import *
 from federation import *
 
-__version__ = "0.1.0"
 
 def send_payment(secret, account, destination, amount):
 
@@ -30,6 +29,7 @@ def send_payment(secret, account, destination, amount):
 	complete_transaction_fields(tx_json)
 	tx_blob = sign_transaction(secret, tx_json)
 	submit_transaction(tx_blob)
+#	increase_sequence_number(account)
 
 
 def set_regular_key(secret, account, regular_key):
@@ -43,6 +43,7 @@ def set_regular_key(secret, account, regular_key):
 	complete_transaction_fields(tx_json)
 	tx_blob = sign_transaction(secret, tx_json)
 	submit_transaction(tx_blob)
+#	increase_sequence_number(account)
 
 
 def _parse_amount(m):

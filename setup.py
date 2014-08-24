@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from distutils.core import setup
-from stellar import __version__
+from setuptools import setup
+execfile('stellar/version.py')
 
 setup(
     name='stellar-py',
