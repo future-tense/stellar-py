@@ -1,9 +1,10 @@
 
 from address import AccountID, Public, Seed, get_seed_generic
-from federation import *
 from ledger import *
 from transaction import *
+from federation import *
 
+__version__ = "0.1.0"
 
 def send_payment(secret, account, destination, amount):
 

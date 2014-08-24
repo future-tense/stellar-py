@@ -23,6 +23,8 @@ def main():
 	args = parser.parse_args()
 	stellar.send_payment(args.secret, args.source, args.destination, args.amount)
 
+#-------------------------------------------------------------------------------
+
 
 if __name__ == '__main__':
 	main()
