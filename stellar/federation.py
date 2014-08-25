@@ -118,8 +118,6 @@ class FileFederationCache(FederationCache):
 			self.account_id  = pickle.load(f)
 			self.username    = pickle.load(f)
 			f.close()
-	#	else:
-	#		self._get_federation_settings('stellar.org')
 
 		self.initialized = True
 
@@ -139,15 +137,12 @@ cache = FederationCache()
 
 
 def get_account(name):
-	print "<get_account>", name
 
 	name = name.lower()
 	if not '@' in name:
 		name += '@stellar.org'
 
-	res = cache.get_account(name)
-	print "</get_account>", res
-	return res
+	return cache.get_account(name)
 
 #-------------------------------------------------------------------------------
 
