@@ -3,16 +3,16 @@
 import stellar
 import sys
 
+
 def main():
 
 	if len(sys.argv) > 1:
-		seed = stellar.get_seed_generic(sys.argv[1])
-		seed = stellar.Seed(seed)
+		account, secret = stellar.generate_keypair(password=sys.argv[1])
 	else:
-		seed = stellar.Seed.random()
+		account, secret = stellar.generate_keypair()
 
-	print 'Account ID: ', stellar.AccountID.from_seed(seed).to_human()
-	print 'Seed:       ', seed.to_human()
+	print 'Account ID: ', account
+	print 'Secret key: ', secret
 
 if __name__ == '__main__':
 	main()

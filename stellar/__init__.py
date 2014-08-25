@@ -5,6 +5,19 @@ from transaction import *
 from federation import *
 
 
+def generate_keypair(**kwargs):
+
+	if 'password' in kwargs:
+		seed = get_seed_generic(kwargs['password'])
+		seed = Seed(seed)
+	else:
+		seed = Seed.random()
+
+	account		= AccountID.from_seed(seed).to_human()
+	secret_key = seed.to_human()
+	return account, secret_key
+
+
 def get_payment_tx_json(account, destination, amount):
 
 	account = _translate_account_id(account)
