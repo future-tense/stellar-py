@@ -1,0 +1,3 @@
+include README.md
+exclude *.dat
+exclude *.pyc
