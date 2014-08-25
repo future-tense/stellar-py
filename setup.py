@@ -30,6 +30,6 @@ setup(
 		'Operating System :: OS Independent',
 		'Topic :: Software Development :: Libraries :: Python Modules'],
 	install_requires=[
-		"simplejson", "ed25519"
+		"simplejson", "ed25519", "appdirs"
 	],
 )

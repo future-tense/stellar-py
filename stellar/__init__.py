@@ -68,6 +68,6 @@ def _translate_account_id(account):
 	try:
 		t = AccountID.from_human(account)
 	except Exception:
-		return get_accountid(account)
+		return get_account(account)
 	else:
 		return account

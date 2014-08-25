@@ -12,133 +12,160 @@ urllib2.install_opener(opener)
 
 #-------------------------------------------------------------------------------
 
-forward_url = {}
-reverse_url = {}
-account_id  = {}
-username    = {}
 
-#-------------------------------------------------------------------------------
+class FederationCache(object):
 
+	def __init__(self):
 
-def get_forward_url(domain):
+		self.forward_url = {}
+		self.reverse_url = {}
+		self.account_id  = {}
+		self.username    = {}
+		self.initialized = False
 
-	if domain in forward_url:
-		return forward_url[domain]
-	else:
-		get_federation_settings(domain)
-		if domain in forward_url:
-			return forward_url[domain]
+	def _init(self):
+		self.initialized = True
+
+	def _update(self):
+		pass
+
+	def get_account(self, name):
+
+		if not self.initialized:
+			self._init()
+
+		if name in self.account_id:
+			return self.account_id[name]
+
+		name, domain = name.split('@')
+		res = self.__get_federated_account(name, domain)
+		if res:
+			self.account_id['%s@%s' % (name, domain)] = res
+			self._update()
+
+		return res
+
+	def __get_federated_account(self, name, domain):
+
+		url = self.__get_forward_url(domain)
+		query = '?destination=%s&domain=%s&type=federation&user=%s' % (name, domain, name)
+
+		req = urllib2.Request(url + query)
+		response = urllib2.urlopen(req)
+		res = response.read()
+		js = json.loads(res)
+
+		if 'federation_json' in js:
+			res = js['federation_json']['destination_address']
+			return res
 		else:
 			return None
 
+	def __get_forward_url(self, domain):
 
-def get_federation_settings(domain):
-
-	global dirty
-	s = None
-
-	prefix = ['stellar.', 'www.', '']
-	for p in prefix:
-
-		url = 'https://%s%s/stellar.txt' % (p, domain)
-		req = urllib2.Request(url)
-
-		try:
-			response = urllib2.urlopen(req)
-		except urllib2.URLError:
-			pass
+		if domain in self.forward_url:
+			return self.forward_url[domain]
 		else:
-			s = response.read().splitlines()
-			break
+			self._get_federation_settings(domain)
+			if domain in self.forward_url:
+				return self.forward_url[domain]
+			else:
+				return None
 
-	while s:
-		if s[0] == '[federation_url]':
-			forward_url[domain] = s[1]
-			dirty = True
-			s = s[2:]
-		elif s[0] == '[reverse_federation_url]':
-			reverse_url[domain] = s[1]
-			dirty = True
-			s = s[2:]
-		else:
-			s = s[1:]
+	def _get_federation_settings(self, domain):
+
+		s = None
+
+		prefix = ['stellar.', 'www.', '']
+		for p in prefix:
+
+			url = 'https://%s%s/stellar.txt' % (p, domain)
+			req = urllib2.Request(url)
+
+			try:
+				response = urllib2.urlopen(req)
+			except urllib2.URLError:
+				pass
+			else:
+				s = response.read().splitlines()
+				break
+
+		while s:
+			if s[0] == '[federation_url]':
+				self.forward_url[domain] = s[1]
+				s = s[2:]
+			elif s[0] == '[reverse_federation_url]':
+				self.reverse_url[domain] = s[1]
+				s = s[2:]
+			else:
+				s = s[1:]
 
 #-------------------------------------------------------------------------------
 
 
-def get_accountid(name):
+class FileFederationCache(FederationCache):
+
+	def __init__(self, filename):
+		super(FileFederationCache, self).__init__()
+		self.filename = filename
+
+	def _init(self):
+
+		if os.path.exists(self.filename):
+			f = open(self.filename, 'rb')
+			self.forward_url = pickle.load(f)
+			self.reverse_url = pickle.load(f)
+			self.account_id  = pickle.load(f)
+			self.username    = pickle.load(f)
+			f.close()
+	#	else:
+	#		self._get_federation_settings('stellar.org')
+
+		self.initialized = True
+
+	def _update(self):
+		f = open(self.filename, 'wb')
+		pickle.dump(self.forward_url, f, -1)
+		pickle.dump(self.reverse_url, f, -1)
+		pickle.dump(self.account_id, f, -1)
+		pickle.dump(self.username, f, -1)
+		f.close()
+
+#-------------------------------------------------------------------------------
+
+cache = FederationCache()
+
+#-------------------------------------------------------------------------------
+
+
+def get_account(name):
+	print "<get_account>", name
 
 	name = name.lower()
 	if not '@' in name:
 		name += '@stellar.org'
 
-	if name in account_id:
-		return account_id[name]
-
-	#
-
-	global dirty
-
-	name, domain = name.split('@')
-
-	url = get_forward_url(domain)
-	query = '?destination=%s&domain=%s&type=federation&user=%s' % (name, domain, name)
-
-	req = urllib2.Request(url + query)
-	response = urllib2.urlopen(req)
-	res = response.read()
-	js = json.loads(res)
-
-	if 'federation_json' in js:
-		res = js['federation_json']['destination_address']
-		account_id['%s@%s' % (name, domain)] = res
-		dirty = True
-	else:
-		res = None
-
-	if dirty:
-		f = open(filename, 'wb')
-		pickle.dump(forward_url, f, -1)
-		pickle.dump(reverse_url, f, -1)
-		pickle.dump(account_id, f, -1)
-		pickle.dump(username, f, -1)
-		f.close()
-		dirty = False
-
+	res = cache.get_account(name)
+	print "</get_account>", res
 	return res
 
 #-------------------------------------------------------------------------------
 
 
-def get_username(account_id):
-
-	url = reverse_url['stellar.org']
-	query = "?destination_address=%s&domain=stellar.org" % (account_id)
-
-	req = urllib2.Request(url + query)
-	response = urllib2.urlopen(req)
-	res = response.read()
-	js = json.loads(res)
-
-	if 'federation_json' in js:
-		return js['federation_json']['destination']
-	else:
-		return None
-
-#-------------------------------------------------------------------------------
-
-filename = 'federation.dat'
-dirty = False
-
-if os.path.exists(filename):
-	f = open(filename, 'rb')
-	forward_url = pickle.load(f)
-	reverse_url = pickle.load(f)
-	account_id  = pickle.load(f)
-	username    = pickle.load(f)
-	f.close()
-else:
-	get_federation_settings('stellar.org')
+#def get_username(account_id):
+#
+#	url = reverse_url['stellar.org']
+#	query = "?destination_address=%s&domain=stellar.org" % (account_id)
+#
+#	req = urllib2.Request(url + query)
+#	response = urllib2.urlopen(req)
+#	res = response.read()
+#	js = json.loads(res)
+#
+#	if 'federation_json' in js:
+#		return js['federation_json']['destination']
+#	else:
+#		return None
 
 #-------------------------------------------------------------------------------
 
