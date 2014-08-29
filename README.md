@@ -25,7 +25,7 @@ and then submit it as separate steps.
 ```python
 tc_json = get_payment_tx_json(account, destination, amount)
 tx_blob = sign_transaction(secret, tx_json)
-submit_transaction(tx_blob)
+res, msg = submit_transaction(tx_blob)
 ```
 
 At an even lower level, you can create your own transaction json object,
@@ -46,23 +46,6 @@ tx_blob = stellar.sign_transaction(secret, tx_json)
 stellar.submit_transaction(tx_blob)
 ```
 
-# Federation
-
-Federation is used to translate user names into Stellar account IDs,
-so you don't have to remember 34-character base58 strings.
-
-```python
-account = get_account(name)
-```
-
-Stellar-py maintains a cache with user names and federation servers it
-has come across before. By default this is kept in memory and is gone
-when your application is finished, but it is possible to persist the
-cache to disk by registering a federation cache.
-
-```python
-stellar.federation.cache = stellar.FileFederationCache(filename)
-```
 
 # Installation
 
