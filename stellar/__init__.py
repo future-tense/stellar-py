@@ -2,13 +2,12 @@
 from address import AccountID, Public, Seed, get_seed_generic
 from ledger import *
 from transaction import *
-from federation import *
 
 
-def generate_keypair(**kwargs):
+def generate_keypair(password=None):
 
-	if 'password' in kwargs:
-		seed = get_seed_generic(kwargs['password'])
+	if password:
+		seed = get_seed_generic(password)
 		seed = Seed(seed)
 	else:
 		seed = Seed.random()
@@ -21,7 +20,6 @@ def generate_keypair(**kwargs):
 def get_payment_tx_json(account, destination, amount):
 
 	account = _translate_account_id(account)
-	amount  = _parse_amount(amount)
 
 	tx_json = {
 		'TransactionType': 	'Payment',
@@ -32,7 +30,7 @@ def get_payment_tx_json(account, destination, amount):
 	d = destination.split("?dt=")
 	if len(d) == 2:
 		tx_json['DestinationTag'] = int(d[1])
-	tx_json['Destination'] = _translate_account_id(d[0])
+	tx_json['Destination'] = d[0]
 
 	complete_transaction_fields(tx_json)
 	return tx_json
@@ -44,24 +42,30 @@ def send_payment(secret, account, destination, amount):
 		seed	= Seed.from_human(secret)
 		account = AccountID.from_seed(seed).to_human()
 
-	tx_json = get_payment_tx_json(account, destination, amount)
+	try:
+		tx_json = get_payment_tx_json(account, destination, amount)
+	except Exception as e:
+		return e[0], e[1]
+
 	tx_blob = sign_transaction(secret, tx_json)
-	submit_transaction(tx_blob)
-#	increase_sequence_number(account)
+	return submit_transaction(tx_blob)
 
 
 def set_regular_key(secret, account, regular_key):
 
 	tx_json = {
 		'TransactionType':	'SetRegularKey',
-		'Account':			_translate_account_id(account),
-		'RegularKey':		_translate_account_id(regular_key),
+		'Account':			account,
+		'RegularKey':		regular_key,
 	}
 
-	complete_transaction_fields(tx_json)
+	try:
+		complete_transaction_fields(tx_json)
+	except Exception as e:
+		return e[0], e[1]
+
 	tx_blob = sign_transaction(secret, tx_json)
-	submit_transaction(tx_blob)
-#	increase_sequence_number(account)
+	return submit_transaction(tx_blob)
 
 
 def _parse_amount(m):
@@ -74,13 +78,3 @@ def _parse_amount(m):
 		m *= 1000000
 		m /= 10 ** len(f)
 	return m
-
-
-def _translate_account_id(account):
-
-	try:
-		t = AccountID.from_human(account)
-	except Exception:
-		return get_account(account)
-	else:
-		return account
