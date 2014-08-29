@@ -2,6 +2,7 @@
 from address import AccountID, Public, Seed, get_seed_generic
 from ledger import *
 from transaction import *
+from connection_manager import *
 
 
 def generate_keypair(password=None):
