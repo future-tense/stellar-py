@@ -36,7 +36,10 @@ def main():
 	args = parser.parse_args()
 
 	setup_cache()
-	stellar.send_payment(args.secret, args.source, args.destination, args.amount)
+	res, msg = stellar.send_payment(
+		args.secret, args.source, args.destination, args.amount)
+
+	print msg
 
 #-------------------------------------------------------------------------------
 
