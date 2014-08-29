@@ -3,19 +3,6 @@
 import stellar
 import argparse
 
-import appdirs
-import os
-
-
-def setup_cache():
-
-	cache_dir = appdirs.user_cache_dir("stellar-py", "Pollen 23")
-	if not os.path.exists(cache_dir):
-		os.makedirs(cache_dir)
-
-	cache_file = "%s/federation.dat" % cache_dir
-	stellar.federation.cache = stellar.FileFederationCache(cache_file)
-
 
 def main():
 
@@ -35,7 +22,6 @@ def main():
 
 	args = parser.parse_args()
 
-	setup_cache()
 	res, msg = stellar.send_payment(
 		args.secret, args.source, args.destination, args.amount)
 
