@@ -29,7 +29,10 @@ setup(
 		'License :: OSI Approved :: BSD License',
 		'Operating System :: OS Independent',
 		'Topic :: Software Development :: Libraries :: Python Modules'],
-	install_requires=[
-		"simplejson", "ed25519", "appdirs", "websocket-client"
+	dependency_links=[
+		"http://github.com/xogeny/aplus/tarball/master#egg=aplus-0.11.0"
 	],
+	install_requires=[
+		"simplejson", "ed25519", "appdirs", "websocket-client", "aplus"
+	]
 )
