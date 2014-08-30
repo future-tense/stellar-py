@@ -20,6 +20,8 @@ def generate_keypair(password=None):
 
 def get_payment_tx_json(account, destination, amount):
 
+	amount = _parse_amount(amount)
+
 	tx_json = {
 		'TransactionType': 	'Payment',
 		'Account': 			account,
