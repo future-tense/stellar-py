@@ -23,9 +23,6 @@ def handle_error(self, msg_json):
 
 		if msg_json['error'] == 'noNetwork':
 			self.set_synced(False)
-			print "out of sync", command
-		else:
-			print command
 
 command_blacklist = {'ping', 'subscribe', 'unsubscribe'}
 """
@@ -60,7 +57,6 @@ def handle_response(self, msg_json):
 
 		del self.requests[tid]
 		del self.promises[command_key]
-		print request['command']
 
 		promise.fulfill(msg_json)
 
@@ -178,13 +174,11 @@ class ConnectionManager(websocket.WebSocketApp):
 
 		if command_key in self.promises:
 			p = self.promises[command_key]
-			print command, "cached"
 
 		else:
 			tid = self.get_id()
 			kwargs['id'] = tid
 			js = json.dumps(kwargs)
-			print command, tid
 
 			if self.is_open:
 				self.send(js)
@@ -292,6 +286,5 @@ def set_initial_fee(tx_json):
 #-------------------------------------------------------------------------------
 
 subscribe(streams=['ledger', 'server']).then(set_initial_fee)
-#request('subscribe', streams=['ledger', 'server']).then(set_initial_fee)
 
 #-------------------------------------------------------------------------------
