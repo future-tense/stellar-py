@@ -53,14 +53,17 @@ def transaction_fields_completed_promise(tx_json):
 
 	p = Promise()
 
+	if 'Flags' not in tx_json:
+		tx_json['Flags'] = 0
+
 	def inner(res):
-		sequence, fee = res
-		tx_json['Flags']	= tfFullyCanonicalSig
-		tx_json['Sequence']	= sequence
-		tx_json['Fee']		= fee
+		account_info, fee = res
+		tx_json['Flags']	|= tfFullyCanonicalSig
+		tx_json['Sequence']	 = account_info['Sequence']
+		tx_json['Fee']		 = fee
 		p.fulfill(tx_json)
 
-	p1 = ledger.get_sequence_number_promise(tx_json['Account'])
+	p1 = ledger.get_account_info_promise(tx_json['Account'])
 	p2 = transaction_fee_promise()
 	listPromise([p1, p2]).then(inner)
 
@@ -108,10 +111,10 @@ def sign_transaction(secret, tx_json):
 
 
 def complete_transaction_fields(tx_json):
-	return transaction_fields_completed_promise(tx_json).get(timeout=10)
+	transaction_fields_completed_promise(tx_json).wait()
 
 
 def submit_transaction(tx_blob):
-	return transaction_submitted_promise(tx_blob).get(timeout=10)
+	return transaction_submitted_promise(tx_blob).get(timeout=20)
 
 #-------------------------------------------------------------------------------
