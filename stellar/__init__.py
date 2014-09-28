@@ -69,6 +69,28 @@ def set_regular_key(secret, account, regular_key):
 	return submit_transaction(tx_blob)
 
 
+def get_account_info_promise(account_id):
+
+	p = Promise()
+
+	def on_response(js):
+
+		res = js['result']
+		if 'account_data' in res:
+			ai = res['account_data']
+			p.fulfill(ai)
+		else:
+			error_msg = res['error_message']
+			p.reject(Exception(error_msg))
+
+	send('account_info', account=account_id).then(on_response)
+	return p
+
+
+def get_account_info(account_id):
+	return get_account_info_promise(account_id).get(timeout=10)
+
+
 def _parse_amount(m):
 
 	if type(m) == dict:
