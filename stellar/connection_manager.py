@@ -37,8 +37,22 @@ def on_message(self, message):
 				promise.fulfill(tx_json)
 
 		else:
-			if self.stream_callback:
-				self.stream_callback(tx_json)
+			if tx_json['status'] != 'closed':
+				return
+
+			if tx_json['engine_result_code'] != 0:
+				return
+
+			if not 'transaction' in tx_json:
+				return
+
+			tx_type = tx_json['transaction']['TransactionType']
+			if tx_type == 'Payment':
+				for callback in self.payment_callbacks:
+					callback(tx_json)
+			elif tx_type == 'TrustSet':
+				for callback in self.trustset_callbacks:
+					callback(tx_json)
 
 
 def on_error(self, error):
@@ -71,13 +85,19 @@ class ConnectionManager(websocket.WebSocketApp):
 		self.promises = {}
 		self.last_id = -1
 		self.synced = None
-		self.stream_callback = None
+
+		self.payment_callbacks	= []
+		self.trustset_callbacks = []
 		self.sync_callback = None
+
 		self.event = threading.Event()
 		self.event.clear()
 
-	def set_stream_callback(self, callback):
-		self.stream_callback = callback
+	def add_payment_callback(self, callback):
+		self.payment_callbacks.append(callback)
+
+	def add_trustset_callback(self, callback):
+		self.trustset_callbacks.append(callback)
 
 	def set_sync_callback(self, callback):
 		self.sync_callback = callback
@@ -139,8 +159,16 @@ def send(command, **kwargs):
 	return cm.send_command(command, **kwargs)
 
 
-def set_stream_callback(callback):
-	cm.set_stream_callback(callback)
+def add_payment_callback(callback):
+	cm.add_payment_callback(callback)
+
+
+def add_trustset_callback(callback):
+	cm.add_trustset_callback(callback)
+
+
+def set_sync_callback(callback):
+	cm.set_sync_callback(callback)
 
 
 def run():
