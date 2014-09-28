@@ -1,13 +1,12 @@
 
+import stellar
 import crypto
 import address
 import serialize
-import ledger
 from connection_manager import *
 from utils import *
 
-from aplus import Promise, listPromise
-import math
+from aplus import Promise
 
 #-------------------------------------------------------------------------------
 
@@ -16,37 +15,6 @@ tfFullyCanonicalSig = 0x80000000
 HASH_TX_SIGN = 'STX\0'
 
 #-------------------------------------------------------------------------------
-
-default_fee = 10
-fee_cushion = 1.5
-
-#-------------------------------------------------------------------------------
-
-
-def transaction_fee_promise():
-
-	p = Promise()
-
-	def on_server_response(res):
-
-		server, ledger = res
-		res1 = server['result']
-		res2 = ledger['result']
-
-		factor  = float(res1['load_factor']) / float(res1['load_base'])
-		factor *= float(res2['fee_base'])    / float(res2['fee_ref'])
-		factor *= fee_cushion
-		fee = int(math.ceil(default_fee * factor))
-		p.fulfill(fee)
-
-	p1 = cm.send_command('subscribe', streams=['server'])
-	p2 = cm.send_command('subscribe', streams=['ledger'])
-	listPromise([p1, p2]).done(on_server_response)
-
-	cm.send_command('unsubscribe', streams=['server']).done()
-	cm.send_command('unsubscribe', streams=['ledger']).done()
-
-	return p
 
 
 def transaction_fields_completed_promise(tx_json):
@@ -57,15 +25,13 @@ def transaction_fields_completed_promise(tx_json):
 		tx_json['Flags'] = 0
 
 	def inner(res):
-		account_info, fee = res
 		tx_json['Flags']	|= tfFullyCanonicalSig
-		tx_json['Sequence']	 = account_info['Sequence']
-		tx_json['Fee']		 = fee
+		tx_json['Sequence']	 = res['Sequence']
+		tx_json['Fee']		 = get_fee()
 		p.fulfill(tx_json)
 
-	p1 = ledger.get_account_info_promise(tx_json['Account'])
-	p2 = transaction_fee_promise()
-	listPromise([p1, p2]).then(inner)
+	p = stellar.get_account_info_promise(tx_json['Account'])
+	p.then(inner)
 
 	return p
 
@@ -78,7 +44,7 @@ def transaction_submitted_promise(tx_blob):
 		res = js['result']
 		p.fulfill((res['engine_result'], res['engine_result_message']))
 
-	cm.send_command('submit', tx_blob=tx_blob).then(on_response)
+	stellar.request('submit', tx_blob=tx_blob).then(on_response)
 	return p
 
 #-------------------------------------------------------------------------------

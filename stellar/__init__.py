@@ -83,7 +83,7 @@ def get_account_info_promise(account_id):
 			error_msg = res['error_message']
 			p.reject(Exception(error_msg))
 
-	send('account_info', account=account_id).then(on_response)
+	request('account_info', account=account_id).then(on_response)
 	return p
 
 
