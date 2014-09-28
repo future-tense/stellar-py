@@ -1,8 +1,8 @@
-
 from address import AccountID, Public, Seed, get_seed_generic
 from ledger import *
 from transaction import *
 from connection_manager import *
+from decimal import Decimal
 
 
 def generate_keypair(password=None):
@@ -93,14 +93,6 @@ def get_account_info(account_id):
 
 def _parse_amount(m):
 
-	if type(m) == dict:
-		return m
-	else:
-		if not '.' in m:
-			m = int(m) * 1000000
-		else:
-			i, f = m.split('.')
-			m = int(i + f)
-			m *= 1000000
-			m /= 10 ** len(f)
-		return m
+	if type(m) != dict:
+		m = str(Decimal(m) * 1000000)
+	return m
