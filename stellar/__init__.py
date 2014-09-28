@@ -71,11 +71,14 @@ def set_regular_key(secret, account, regular_key):
 
 def _parse_amount(m):
 
-	if not '.' in m:
-		m = int(m) * 1000000
+	if type(m) == dict:
+		return m
 	else:
-		i, f = m.split('.')
-		m = int(i + f)
-		m *= 1000000
-		m /= 10 ** len(f)
-	return m
+		if not '.' in m:
+			m = int(m) * 1000000
+		else:
+			i, f = m.split('.')
+			m = int(i + f)
+			m *= 1000000
+			m /= 10 ** len(f)
+		return m
