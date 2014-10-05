@@ -15,7 +15,7 @@ class Address(object):
 
 	def to_human(self):
 		s = self.type + self.data
-		s = chr(0) + s + four_byte_hash256(s)
+		s += four_byte_hash256(s)
 		return base58.encode(s)
 
 	@staticmethod
