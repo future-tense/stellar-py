@@ -13,7 +13,12 @@ def handle_error(self, msg_json):
 
 	tid = msg_json['id']
 	if tid in self.requests:
-		error_msg = msg_json['error_message']
+
+		if 'error_message' in msg_json:
+			error_msg = msg_json['error_message']
+		else:
+			error_msg = msg_json['error']
+
 		request = self.requests[tid]
 		promise = request['promise']
 		command = request['command']
@@ -22,7 +27,9 @@ def handle_error(self, msg_json):
 		promise.reject(Exception(error_msg))
 
 		if msg_json['error'] == 'noNetwork':
-			self.set_synced(False)
+			return True
+		else:
+			return False
 
 command_blacklist = {'ping', 'subscribe', 'unsubscribe'}
 """
@@ -33,13 +40,13 @@ of these occur.
 
 
 def handle_find_path(self, msg_json):
-	pass
+	return True
 
 
 def handle_ledger_closed(self, msg_json):
 
-	self.set_synced(True)
 	set_fee_scale(msg_json)
+	return True
 
 
 def handle_response(self, msg_json):
@@ -52,34 +59,37 @@ def handle_response(self, msg_json):
 
 		command_dict = json.loads(command_key)
 		command = command_dict['command']
-		if not command in command_blacklist:
-			self.set_synced(True)
 
 		del self.requests[tid]
 		del self.promises[command_key]
 
 		promise.fulfill(msg_json)
+		return command not in command_blacklist
+
+	else:
+		return False
 
 
 def handle_server_status(self, msg_json):
 
-	self.set_synced(True)
 	set_load_scale(msg_json)
+	return True
 
 
 def handle_transaction(self, msg_json):
 
-	self.set_synced(True)
 	if msg_json['status'] != 'closed':
-		return
+		return True
 
 	if msg_json['engine_result_code'] != 0:
-		return
+		return True
 
 	tx_type = msg_json['transaction']['TransactionType'].lower()
 	if tx_type in self.tx_callbacks:
 		for callback in self.tx_callbacks[tx_type]:
 			callback(msg_json)
+
+	return True
 
 #-------------------------------------------------------------------------------
 
@@ -99,13 +109,19 @@ def on_message(self, message):
 	self.event.set()
 	msg_json = json.loads(message)
 
+	res = False
 	if 'error' in msg_json:
-		handle_error(self, msg_json)
+		res = handle_error(self, msg_json)
+		status = False
 
 	else:
 		msg_type = msg_json['type']
 		if msg_type in msg_handlers:
-			msg_handlers[msg_type](self, msg_json)
+			res = msg_handlers[msg_type](self, msg_json)
+			status = True
+
+	if res:
+		self.set_sync_status(status)
 
 
 def on_error(self, error):
@@ -139,29 +155,28 @@ class ConnectionManager(websocket.WebSocketApp):
 		self.requests = {}
 		self.promises = {}
 		self.last_id = -1
-		self.synced = None
 
-		self.sync_callback = None
+		self.sync_flag = None
+		self.sync_callback = lambda: None
+
 		self.tx_callbacks = {
 			'trustset': [],
 			'payment':	[],
 		}
 
+		self.clear_subscriptions()
+
 		self.event = threading.Event()
 		self.event.clear()
-
-	def add_callback(self, tx_type, callback):
-		self.tx_callbacks[tx_type].append(callback)
 
 	def set_sync_callback(self, callback):
 		self.sync_callback = callback
 
-	def set_synced(self, flag):
+	def set_sync_status(self, flag):
 
-		if flag != self.synced:
-			self.synced = flag
-			if self.sync_callback:
-				self.sync_callback(flag)
+		if flag != self.sync_flag:
+			self.sync_flag = flag
+			self.sync_callback(flag)
 
 	def get_id(self):
 		self.last_id +=1
@@ -196,6 +211,51 @@ class ConnectionManager(websocket.WebSocketApp):
 
 		return p
 
+	def run(self):
+		self.start_ping_thread()
+		self.run_forever()
+		self.stop_ping_thread()
+		self.resubscribe()
+
+	#
+	#	subscription management
+	#
+
+	def add_callback(self, tx_type, callback):
+		self.tx_callbacks[tx_type].append(callback)
+
+	def clear_subscriptions(self):
+
+		self.subscriptions = {
+			'streams':		[],
+			'accounts':		[],
+			'accounts_rt':	[],
+			'books':		[]
+		}
+
+	def resubscribe(self):
+		self.request('subscribe', **self.subscriptions)
+
+	def subscribe(self, **kwargs):
+
+		for key, value in kwargs.iteritems():
+			t = self.subscriptions[key]
+			t = list(set(t).union(value))
+
+		return self.request('subscribe', **kwargs)
+
+	def unsubscribe(self, **kwargs):
+
+		for key, value in kwargs.iteritems():
+			t = self.subscriptions[key]
+			t = list(set(t).difference(value))
+
+		return self.request('unsubscribe', **kwargs)
+
+	#
+	#	ping thread management
+	#
+
 	def ping_thread_target(self):
 		while not self.end_ping_thread:
 			if not self.event.wait(30):
@@ -214,11 +274,6 @@ class ConnectionManager(websocket.WebSocketApp):
 		self.event.set()
 		self.ping_thread.join()
 
-	def run(self):
-		self.start_ping_thread()
-		self.run_forever()
-		self.stop_ping_thread()
-
 #-------------------------------------------------------------------------------
 
 
@@ -227,11 +282,11 @@ def request(command, **kwargs):
 
 
 def subscribe(**kwargs):
-	return cm.request('subscribe', **kwargs)
+	return cm.subscribe(**kwargs)
 
 
 def unsubscribe(**kwargs):
-	return cm.request('unsubscribe', **kwargs)
+	return cm.unsubscribe(**kwargs)
 
 
 def add_callback(tx_type, callback):
@@ -283,8 +338,8 @@ def set_initial_fee(tx_json):
 	set_fee_scale(result)
 	set_load_scale(result)
 
-#-------------------------------------------------------------------------------
 
-subscribe(streams=['ledger', 'server']).then(set_initial_fee)
+def subscribe_fee():
+	subscribe(streams=['ledger', 'server']).then(set_initial_fee)
 
 #-------------------------------------------------------------------------------
