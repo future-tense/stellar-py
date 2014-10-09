@@ -3,7 +3,6 @@ import stellar
 import crypto
 import address
 import serialize
-from connection_manager import *
 from utils import *
 
 from aplus import Promise
@@ -21,17 +20,22 @@ def transaction_fields_completed_promise(tx_json):
 
 	p = Promise()
 
-	if 'Flags' not in tx_json:
+	if 'Flags' in tx_json:
+		tx_json['Flags'] |= tfFullyCanonicalSig
+	else:
 		tx_json['Flags'] = 0
 
-	def inner(res):
-		tx_json['Flags']	|= tfFullyCanonicalSig
-		tx_json['Sequence']	 = res['Sequence']
-		tx_json['Fee']		 = get_fee()
-		p.fulfill(tx_json)
+	tx_json['Fee'] = stellar.get_fee()
 
-	p = stellar.get_account_info_promise(tx_json['Account'])
-	p.then(inner)
+	if 'Sequence' in tx_json:
+		p.fulfill(tx_json)
+	else:
+		def inner(res):
+			tx_json['Sequence'] = res['Sequence']
+			p.fulfill(tx_json)
+
+		p = stellar.get_account_info_promise(tx_json['Account'])
+		p.then(inner)
 
 	return p
 

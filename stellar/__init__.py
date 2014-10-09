@@ -1,8 +1,47 @@
 from address import AccountID, Public, Seed, get_seed_generic
-from ledger import *
 from transaction import *
-from connection_manager import *
+
 from decimal import Decimal
+
+from connection_manager import *
+import fee
+
+
+def get_fee():
+	return fee.get()
+
+
+def subscribe_fee():
+	fee.subscribe()
+
+
+def unsubscribe_fee():
+	fee.unsubscribe()
+
+
+def request(command, **kwargs):
+	return _cm.request(command, **kwargs)
+
+
+def subscribe(**kwargs):
+	return _cm.subscribe(**kwargs)
+
+
+def unsubscribe(**kwargs):
+	return _cm.unsubscribe(**kwargs)
+
+
+def add_callback(tx_type, callback):
+	_cm.add_callback(tx_type, callback)
+
+
+def set_sync_callback(callback):
+	_cm.set_sync_callback(callback)
+
+#-------------------------------------------------------------------------------
+
+_cm = ConnectionManager("ws://live.stellar.org:9001/")
+_cm.run()
 
 
 def generate_keypair(password=None):

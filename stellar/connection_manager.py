@@ -1,5 +1,7 @@
 
 import websocket
+import fee
+
 import thread
 import simplejson as json
 import threading
@@ -9,7 +11,7 @@ from aplus import Promise
 #-------------------------------------------------------------------------------
 
 
-def handle_error(self, msg_json):
+def _handle_error(self, msg_json):
 
 	tid = msg_json['id']
 	if tid in self.requests:
@@ -31,7 +33,18 @@ def handle_error(self, msg_json):
 		else:
 			return False
 
-command_blacklist = {'ping', 'subscribe', 'unsubscribe'}
+
+def _handle_find_path(self, msg_json):
+	return True
+
+
+def _handle_ledger_closed(self, msg_json):
+
+	fee.set_fee_scale(msg_json)
+	return True
+
+
+_skiplist = {'ping', 'subscribe', 'unsubscribe'}
 """
 These commands always return success, no matter if the stellard
 is synchronized or not, so don't set status to synced when one
@@ -39,17 +52,7 @@ of these occur.
 """
 
 
-def handle_find_path(self, msg_json):
-	return True
-
-
-def handle_ledger_closed(self, msg_json):
-
-	set_fee_scale(msg_json)
-	return True
-
-
-def handle_response(self, msg_json):
+def _handle_response(self, msg_json):
 
 	tid = msg_json['id']
 	if tid in self.requests:
@@ -64,19 +67,19 @@ def handle_response(self, msg_json):
 		del self.promises[command_key]
 
 		promise.fulfill(msg_json)
-		return command not in command_blacklist
+		return command not in _skiplist
 
 	else:
 		return False
 
 
-def handle_server_status(self, msg_json):
+def _handle_server_status(self, msg_json):
 
-	set_load_scale(msg_json)
+	fee.set_load_scale(msg_json)
 	return True
 
 
-def handle_transaction(self, msg_json):
+def _handle_transaction(self, msg_json):
 
 	if msg_json['status'] != 'closed':
 		return True
@@ -91,64 +94,60 @@ def handle_transaction(self, msg_json):
 
 	return True
 
-#-------------------------------------------------------------------------------
-
-msg_handlers = {
-	'find_path':	handle_find_path,
-	'ledgerClosed':	handle_ledger_closed,
-	'response':		handle_response,
-	'serverStatus':	handle_server_status,
-	'transaction':	handle_transaction,
+_msg_handlers = {
+	'find_path':	_handle_find_path,
+	'ledgerClosed':	_handle_ledger_closed,
+	'response':		_handle_response,
+	'serverStatus':	_handle_server_status,
+	'transaction':	_handle_transaction,
 }
 
-#-------------------------------------------------------------------------------
 
-
-def on_message(self, message):
+def _on_message(self, message):
 
 	self.event.set()
 	msg_json = json.loads(message)
 
 	res = False
 	if 'error' in msg_json:
-		res = handle_error(self, msg_json)
+		res = _handle_error(self, msg_json)
 		status = False
 
 	else:
 		msg_type = msg_json['type']
-		if msg_type in msg_handlers:
-			res = msg_handlers[msg_type](self, msg_json)
+		if msg_type in _msg_handlers:
+			res = _msg_handlers[msg_type](self, msg_json)
 			status = True
 
 	if res:
-		self.set_sync_status(status)
+		self._set_sync_status(status)
 
 
-def on_error(self, error):
-	print error
+def _on_error(self, error):
+	pass
 
 
-def on_close(self):
-	print "websocket closed"
+def _on_close(self):
+	pass
 
 
-def on_open(self):
+def _on_open(self):
 	self.is_open = True
 	for tx in self.queue:
 		self.send(tx)
-
-#-------------------------------------------------------------------------------
 
 
 class ConnectionManager(websocket.WebSocketApp):
 
 	def __init__(self, url):
-		super(ConnectionManager, self).__init__(url,
-			on_open	   = on_open,
-			on_message = on_message,
-			on_error   = on_error,
-			on_close   = on_close
+		super(ConnectionManager, self).__init__(
+			url,
+			on_open		= _on_open,
+			on_message	= _on_message,
+			on_error	= _on_error,
+			on_close	= _on_close,
 		)
+
 		self.queue = []
 		self.is_open = False
 
@@ -164,7 +163,7 @@ class ConnectionManager(websocket.WebSocketApp):
 			'payment':	[],
 		}
 
-		self.clear_subscriptions()
+		self.__clear_subscriptions()
 
 		self.event = threading.Event()
 		self.event.clear()
@@ -172,13 +171,13 @@ class ConnectionManager(websocket.WebSocketApp):
 	def set_sync_callback(self, callback):
 		self.sync_callback = callback
 
-	def set_sync_status(self, flag):
+	def _set_sync_status(self, flag):
 
 		if flag != self.sync_flag:
 			self.sync_flag = flag
 			self.sync_callback(flag)
 
-	def get_id(self):
+	def __get_id(self):
 		self.last_id +=1
 		return self.last_id
 
@@ -191,7 +190,7 @@ class ConnectionManager(websocket.WebSocketApp):
 			p = self.promises[command_key]
 
 		else:
-			tid = self.get_id()
+			tid = self.__get_id()
 			kwargs['id'] = tid
 			js = json.dumps(kwargs)
 
@@ -212,10 +211,16 @@ class ConnectionManager(websocket.WebSocketApp):
 		return p
 
 	def run(self):
-		self.start_ping_thread()
-		self.run_forever()
-		self.stop_ping_thread()
-		self.resubscribe()
+
+		def thread_target():
+
+			while True:
+				self.__start_ping_thread()
+				self.run_forever()
+				self.__stop_ping_thread()
+				self.__resubscribe()
+
+		thread.start_new_thread(thread_target, ())
 
 	#
 	#	subscription management
@@ -224,7 +229,7 @@ class ConnectionManager(websocket.WebSocketApp):
 	def add_callback(self, tx_type, callback):
 		self.tx_callbacks[tx_type].append(callback)
 
-	def clear_subscriptions(self):
+	def __clear_subscriptions(self):
 
 		self.subscriptions = {
 			'streams':		[],
@@ -233,7 +238,7 @@ class ConnectionManager(websocket.WebSocketApp):
 			'books':		[]
 		}
 
-	def resubscribe(self):
+	def __resubscribe(self):
 		self.request('subscribe', **self.subscriptions)
 
 	def subscribe(self, **kwargs):
@@ -256,90 +261,21 @@ class ConnectionManager(websocket.WebSocketApp):
 	#	ping thread management
 	#
 
-	def ping_thread_target(self):
+	def __ping_thread_target(self):
 		while not self.end_ping_thread:
 			if not self.event.wait(30):
 				self.request('ping')
 			self.event.clear()
 
-	def start_ping_thread(self):
+	def __start_ping_thread(self):
 		self.event = threading.Event()
 		self.end_ping_thread = False
-		self.ping_thread = threading.Thread(target=self.ping_thread_target)
+		self.ping_thread = threading.Thread(target=self.__ping_thread_target)
 		self.ping_thread.setDaemon(True)
 		self.ping_thread.start()
 
-	def stop_ping_thread(self):
+	def __stop_ping_thread(self):
 		self.end_ping_thread = True
 		self.event.set()
 		self.ping_thread.join()
 
-#-------------------------------------------------------------------------------
-
-
-def request(command, **kwargs):
-	return cm.request(command, **kwargs)
-
-
-def subscribe(**kwargs):
-	return cm.subscribe(**kwargs)
-
-
-def unsubscribe(**kwargs):
-	return cm.unsubscribe(**kwargs)
-
-
-def add_callback(tx_type, callback):
-	cm.add_callback(tx_type, callback)
-
-
-def set_sync_callback(callback):
-	cm.set_sync_callback(callback)
-
-
-def run():
-	while True:
-		cm.run()
-
-#-------------------------------------------------------------------------------
-
-cm = ConnectionManager("ws://live.stellar.org:9001/")
-thread.start_new_thread(run, ())
-
-#-------------------------------------------------------------------------------
-
-fee_structure = {
-	'default_fee': 10,
-	'fee_cushion': 1.2,
-}
-
-
-def set_fee_scale(tx):
-	fee_base  = float(tx['fee_base'])
-	fee_ref   = float(tx['fee_ref'])
-	fee_scale = fee_base / fee_ref
-	fee_structure['fee_scale']  = fee_scale
-
-
-def set_load_scale(tx):
-	load_base	 = float(tx['load_base'])
-	load_factor  = float(tx['load_factor'])
-	load_scale	 = load_factor / load_base
-	fee_structure['load_scale'] = load_scale
-
-
-def get_fee():
-	f = fee_structure
-	return int(f['default_fee'] * f['fee_scale'] * f['load_scale'])
-
-
-def set_initial_fee(tx_json):
-	result = tx_json['result']
-	set_fee_scale(result)
-	set_load_scale(result)
-
-
-def subscribe_fee():
-	subscribe(streams=['ledger', 'server']).then(set_initial_fee)
-
-#-------------------------------------------------------------------------------
