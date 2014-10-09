@@ -156,7 +156,7 @@ class ConnectionManager(websocket.WebSocketApp):
 		self.last_id = -1
 
 		self.sync_flag = None
-		self.sync_callback = lambda: None
+		self.sync_callback = lambda x: None
 
 		self.tx_callbacks = {
 			'trustset': [],
