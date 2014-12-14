@@ -20,28 +20,32 @@ def unsubscribe_fee():
 
 
 def request(command, **kwargs):
-	return _cm.request(command, **kwargs)
+	return _getCM().request(command, **kwargs)
 
 
 def subscribe(**kwargs):
-	return _cm.subscribe(**kwargs)
+	return _getCM().subscribe(**kwargs)
 
 
 def unsubscribe(**kwargs):
-	return _cm.unsubscribe(**kwargs)
+	return _getCM().unsubscribe(**kwargs)
 
 
 def add_callback(tx_type, callback):
-	_cm.add_callback(tx_type, callback)
+	_getCM().add_callback(tx_type, callback)
 
 
 def set_sync_callback(callback):
-	_cm.set_sync_callback(callback)
+	_getCM().set_sync_callback(callback)
 
 #-------------------------------------------------------------------------------
 
-_cm = ConnectionManager("ws://live.stellar.org:9001/")
-_cm.run()
+_cm = None
+def _getCM():
+	if _cm is None:
+		_cm = ConnectionManager("ws://live.stellar.org:9001/")
+		_cm.run()
+	return _cm
 
 
 def generate_keypair(password=None):
