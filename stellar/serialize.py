@@ -1,10 +1,11 @@
-from address import AccountID
-from utils import *
+
 from decimal import Decimal
+from address import account_from_human
+from utils import *
 
 #-------------------------------------------------------------------------------
 
-field_map = {
+FIELD_MAP = {
 	'Account':			(8, 1),
 	'Amount':			(6, 1),
 	'ClearFlag':		(2, 34),
@@ -12,15 +13,17 @@ field_map = {
 	'DestinationTag':	(2, 14),
 	'Fee':				(6, 8),
 	'Flags':			(2, 2),
-	'InflationDest':	(8, 9),
+	'InflationDest':	(8, 9),				#stellar
 	'LimitAmount':		(6, 3),
 	'OfferSequence':	(2, 25),
 	'Paths':			(18, 1),
 	'RegularKey':		(8, 8),
 	'SendMax':			(6, 9),
 	'Sequence':			(2, 4),
+	'SetAuthKey':		(8, 10),			#stellar
 	'SetFlag':			(2, 33),
 	'SigningPubKey':	(7, 3),
+	'SourceTag':		(2, 2),
 	'TakerGets':		(6, 5),
 	'TakerPays':		(6, 4),
 	'TransactionType':	(1, 2),
@@ -29,6 +32,7 @@ field_map = {
 }
 
 TRANSACTION_TYPES = {
+	'AccountMerge':		4,					#stellar
 	'AccountSet':		3,
 	'OfferCancel':		8,
 	'OfferCreate':		7,
@@ -36,7 +40,6 @@ TRANSACTION_TYPES = {
 	'SetRegularKey':	5,
 	'TrustSet':			20
 }
-
 
 #-------------------------------------------------------------------------------
 
@@ -55,7 +58,7 @@ def parse_non_native_amount(string):
 
 	value = int(value)
 	if value == 0:
-		exponent = -100
+		exponent = -99
 
 	return parts.sign, value, exponent
 
@@ -70,7 +73,7 @@ def serialize_non_native_amount(amount):
 	hi |= ((97 + exponent) & 0xff) << 22
 
 	value |= hi << 32
-	return int_to_bytes(value, 8)
+	return serialize_int64(value)
 
 
 def serialize_currency(currency):
@@ -85,91 +88,97 @@ def serialize_currency(currency):
 def serialize_native_amount(amount):
 
 	amount = int(amount)
-	result = int_to_bytes(amount, 8)
+	pos = True if amount > 0 else False
+	amount &= (1 << 62) - 1
+	if pos:
+		amount |= 1 << 62
 
-	top = ord(result[0])
-	top &= 0x3f
-	if amount > 0:
-		top |= 0x40
-	result = chr(top) + result[1:]
-	return result
+	return serialize_int64(amount)
 
 
 def serialize_account_id(human):
-	return AccountID.from_human(human).data
+	return account_from_human(human)
 
 
 def serialize_amount(value):
 
-	blob = ''
-	if type(value) == dict:
-		blob += serialize_non_native_amount(value['value'])
-		blob += serialize_currency(value['currency'])
-		blob += serialize_account_id(value['issuer'])
+	if type(value) == int:
+		amount = value				#	tx fee in provided as an int
 	else:
-		blob += serialize_native_amount(value)
+		amount = value.to_json()
+
+	if type(amount) == dict:
+		blob  = serialize_non_native_amount(amount['value'])
+		blob += serialize_currency(amount['currency'])
+		blob += serialize_account_id(amount['issuer'])
+	else:
+		blob  = serialize_native_amount(amount)
 	return blob
 
 
 def serialize_account(value):
-	blob = ''
 	data = serialize_account_id(value)
-	blob += chr(len(data))
-	blob += data
-	return blob
+	return serialize_vl(data)
 
 
-def serialize_pathset(value):
-	path_boundary	= chr(0xff)
-	path_end		= chr(0x00)
-	flag_account	= 0x01
-	flag_currency	= 0x10
-	flag_issuer		= 0x20
+def serialize_path(path):
+
+	FLAG_ACCOUNT	= 0x01
+	FLAG_CURRENCY	= 0x10
+	FLAG_ISSUER		= 0x20
 
 	blob = ''
-	for index, path in enumerate(value):
+	for entry in path:
+		flags = 0
+		if 'account' in entry:
+			flags |= FLAG_ACCOUNT
+		if 'currency' in entry:
+			flags |= FLAG_CURRENCY
+		if 'issuer' in entry:
+			flags |= FLAG_ISSUER
+		if entry['type'] != flags:
+			#raise hell
+			pass
 
-		if index != 0:
-			blob += path_boundary
+		flags = entry['type']
+		blob += chr(flags)
+		if flags & FLAG_ACCOUNT:
+			blob += serialize_account_id(entry['account'])
+		if flags & FLAG_CURRENCY:
+			blob += serialize_currency(entry['currency'])
+		if flags & FLAG_ISSUER:
+			blob += serialize_account_id(entry['issuer'])
 
-		for entry in path:
-			flags = 0
-			if 'account' in entry:
-				flags |= flag_account
-			if 'currency' in entry:
-				flags |= flag_currency
-			if 'issuer' in entry:
-				flags |= flag_issuer
-			if entry['type'] != flags:
-				#raise hell
-				pass
-
-			flags = entry['type']
-			blob += chr(flags)
-			if flags & flag_account:
-				blob += serialize_account_id(entry['account'])
-			if flags & flag_currency:
-				blob += serialize_currency(entry['currency'])
-			if flags & flag_issuer:
-				blob += serialize_account_id(entry['issuer'])
-
-	blob += path_end
 	return blob
+
+
+def serialize_pathset(pathset):
+
+	PATH_BOUNDARY = chr(0xff)
+	PATH_END      = chr(0x00)
+
+	blobs = [
+		serialize_path(path)
+		for path in pathset
+	]
+
+	return PATH_BOUNDARY.join(blobs) + PATH_END
 
 
 def serialize_int16(value):
-	return int_to_bytes(value, 2)
+	return int_to_bytes(value, size=2)
 
 
 def serialize_int32(value):
-	return int_to_bytes(value, 4)
+	return int_to_bytes(value, size=4)
+
+
+def serialize_int64(value):
+	return int_to_bytes(value, size=8)
 
 
 def serialize_vl(value):
-	blob = ''
-	blob += chr(len(value))
-	blob += value
-	return blob
+	return chr(len(value)) + value
 
 #-------------------------------------------------------------------------------
 
@@ -187,19 +196,19 @@ serializer_dict = {
 
 def serialize_json(tx_json):
 
-	def _comparator(a, b):
-		return 1 if field_map[a] > field_map[b] else -1
+	def comparator(a, b):
+		return 1 if FIELD_MAP[a] > FIELD_MAP[b] else -1
 
 	blob = ''
-	keys = sorted(tx_json.keys(), cmp=_comparator)
+	keys = sorted(tx_json.keys(), cmp=comparator)
 	for k in keys:
 		value = tx_json[k]
 		if k == 'TransactionType':
 			value = TRANSACTION_TYPES[value]
 
-		type_id, field_id = field_map[k]
-		tag = ((type_id << 4 if type_id < 16 else 0) |
-			   (field_id if field_id < 16 else 0))
+		type_id, field_id = FIELD_MAP[k]
+		tag = ((type_id << 4 if type_id  < 16 else 0) |
+			   (field_id     if field_id < 16 else 0))
 		blob += chr(tag)
 
 		if type_id >= 16:

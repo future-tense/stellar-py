@@ -1,6 +1,6 @@
 
 import websocket
-import fee
+from fee import Fee
 
 import thread
 import simplejson as json
@@ -12,6 +12,8 @@ from aplus import Promise
 
 
 def _handle_error(self, msg_json):
+
+#	print json.dumps(msg_json, sort_keys=True, indent=2, separators=(',', ': '))
 
 	tid = msg_json['id']
 	if tid in self.requests:
@@ -26,11 +28,15 @@ def _handle_error(self, msg_json):
 		command = request['command']
 		del self.requests[tid]
 		del self.promises[command]
+
+	#	print promise, command
 		promise.reject(Exception(error_msg))
 
 		if msg_json['error'] == 'noNetwork':
+			print "out of sync", command
 			return True
 		else:
+#	#	#	print command
 			return False
 
 
@@ -40,19 +46,18 @@ def _handle_find_path(self, msg_json):
 
 def _handle_ledger_closed(self, msg_json):
 
-	fee.set_fee_scale(msg_json)
+	self.fee.set_fee_scale(msg_json)
 	return True
 
 
+# These commands always return success, no matter if the stellard
+# is synchronized or not, so don't set status to synced when one
+# of these occur.
 _skiplist = {'ping', 'subscribe', 'unsubscribe'}
-"""
-These commands always return success, no matter if the stellard
-is synchronized or not, so don't set status to synced when one
-of these occur.
-"""
 
 
 def _handle_response(self, msg_json):
+	""" Handle messages that arrive as a direct response to a sent command """
 
 	tid = msg_json['id']
 	if tid in self.requests:
@@ -65,17 +70,18 @@ def _handle_response(self, msg_json):
 
 		del self.requests[tid]
 		del self.promises[command_key]
+#	#	print request['command']
 
 		promise.fulfill(msg_json)
 		return command not in _skiplist
 
 	else:
-		return False
+		return True
 
 
 def _handle_server_status(self, msg_json):
 
-	fee.set_load_scale(msg_json)
+	self.fee.set_load_scale(msg_json)
 	return True
 
 
@@ -87,7 +93,7 @@ def _handle_transaction(self, msg_json):
 	if msg_json['engine_result_code'] != 0:
 		return True
 
-	tx_type = msg_json['transaction']['TransactionType'].lower()
+	tx_type = msg_json['transaction']['TransactionType']
 	if tx_type in self.tx_callbacks:
 		for callback in self.tx_callbacks[tx_type]:
 			callback(msg_json)
@@ -124,11 +130,13 @@ def _on_message(self, message):
 
 
 def _on_error(self, error):
+#	print error
 	pass
 
 
 def _on_close(self):
-	pass
+	print "websocket closed"
+#	pass
 
 
 def _on_open(self):
@@ -137,10 +145,10 @@ def _on_open(self):
 		self.send(tx)
 
 
-class ConnectionManager(websocket.WebSocketApp):
+class Server(websocket.WebSocketApp):
 
 	def __init__(self, url):
-		super(ConnectionManager, self).__init__(
+		super(Server, self).__init__(
 			url,
 			on_open		= _on_open,
 			on_message	= _on_message,
@@ -148,6 +156,7 @@ class ConnectionManager(websocket.WebSocketApp):
 			on_close	= _on_close,
 		)
 
+		self.fee = Fee()
 		self.queue = []
 		self.is_open = False
 
@@ -159,8 +168,13 @@ class ConnectionManager(websocket.WebSocketApp):
 		self.sync_callback = lambda x: None
 
 		self.tx_callbacks = {
-			'trustset': [],
-			'payment':	[],
+			'AccountMerge':		[],
+			'AccountSet':		[],
+			'OfferCancel':		[],
+			'OfferCreate':		[],
+			'Payment': 			[],
+			'SetRegularKey':	[],
+			'TrustSet':			[]
 		}
 
 		self.__clear_subscriptions()
@@ -181,34 +195,44 @@ class ConnectionManager(websocket.WebSocketApp):
 		self.last_id +=1
 		return self.last_id
 
+	def cancel(self, promise):
+
+		for tid, req in self.requests.items():
+			if req['promise'] == promise:
+				command_key = req['command']
+				del self.requests[tid]
+				del self.promises[command_key]
+
+	def __send_request(self, command_key, **kwargs):
+		tid = self.__get_id()
+		kwargs['id'] = tid
+		js = json.dumps(kwargs)
+#	#	print command, tid
+
+		if self.is_open:
+			self.send(js)
+		else:
+			self.queue.append(js)
+##	#	if self.sock and
+
+		p = Promise()
+		request = {
+			'command':	command_key,
+			'promise':	p
+		}
+
+		self.requests[tid] = request
+		self.promises[command_key] = p
+		return p
+
 	def request(self, command, **kwargs):
 
 		kwargs['command'] = command
 		command_key = json.dumps(kwargs, sort_keys=True)
-
-		if command_key in self.promises:
-			p = self.promises[command_key]
-
+		if command_key not in self.promises:
+			return self.__send_request(command_key, **kwargs)
 		else:
-			tid = self.__get_id()
-			kwargs['id'] = tid
-			js = json.dumps(kwargs)
-
-			if self.is_open:
-				self.send(js)
-			else:
-				self.queue.append(js)
-
-			p = Promise()
-			request = {
-				'command':	command_key,
-				'promise':	p
-			}
-
-			self.requests[tid] = request
-			self.promises[command_key] = p
-
-		return p
+			return self.promises[command_key]
 
 	def run(self):
 
@@ -221,6 +245,16 @@ class ConnectionManager(websocket.WebSocketApp):
 				self.__resubscribe()
 
 		thread.start_new_thread(thread_target, ())
+
+	#
+	#	fees
+	#
+
+	def set_initial_fee(self, tx_json):
+		self.fee.set_initial_fee(tx_json)
+
+	def get_fee(self):
+		return self.fee.get()
 
 	#
 	#	subscription management
@@ -239,21 +273,44 @@ class ConnectionManager(websocket.WebSocketApp):
 		}
 
 	def __resubscribe(self):
-		self.request('subscribe', **self.subscriptions)
+
+		kwargs = {}
+		for key, value in self.subscriptions.iteritems():
+			if value:
+				kwargs[key] = [
+					json.loads(item)
+					for item in value
+				]
+
+		self.request('subscribe', **kwargs)
 
 	def subscribe(self, **kwargs):
 
 		for key, value in kwargs.iteritems():
+
+			value = [
+				json.dumps(item, sort_keys=True)
+				for item in value
+			]
+
 			t = self.subscriptions[key]
 			t = list(set(t).union(value))
+			self.subscriptions[key] = t
 
 		return self.request('subscribe', **kwargs)
 
 	def unsubscribe(self, **kwargs):
 
 		for key, value in kwargs.iteritems():
+
+			value = [
+				json.dumps(item, sort_keys=True)
+				for item in value
+			]
+
 			t = self.subscriptions[key]
 			t = list(set(t).difference(value))
+			self.subscriptions[key] = t
 
 		return self.request('unsubscribe', **kwargs)
 

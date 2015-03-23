@@ -1,42 +1,57 @@
+
 import utils
+import crypto
 
-__b58chars = 'gsphnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCr65jkm8oFqi1tuvAxyz'
-__b58base = len(__b58chars)
-
-__b58inv = {}
-for i, c in enumerate(__b58chars):
-	__b58inv[c] = i
+#	_RIPPLE  = 'rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz'
+#	_STELLAR = 'gsphnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCr65jkm8oFqi1tuvAxyz'
+#	_BITCOIN = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 
 
-def encode(v):
-
-	long_value = int(v.encode("hex_codec"), 16)
-
-	result = ''
-	while long_value >= __b58base:
-		long_value, mod = divmod(long_value, __b58base)
-		result += __b58chars[mod]
-	result += __b58chars[long_value]
-
-	z = 0
-	while v[z] == '\0':
-		z += 1
-
-	return __b58chars[0]*z + result[::-1]
+BASE = 58
 
 
-def decode(v):
+def xlate(v, alphabet):
+	return ''.join(alphabet[ch] for ch in v)
 
-	#	count number of leading zeroes
-	z = 0
-	while v[z] == __b58chars[0]:
-		z += 1
 
-	long_value = 0
-	for c in v:
-		long_value *= __b58base
-		long_value += __b58inv[c]
+def zero_padding(v):
 
-	result = utils.int_to_bytes(long_value)
-	result = z * '\0' + result
-	return result
+	num_zeroes = 0
+	while v[num_zeroes] == '\0':
+		num_zeroes += 1
+	return '\0' * num_zeroes
+
+
+def four_byte_hash256(s):
+	return crypto.sha256hash(s)[0:4]
+
+
+class Base58(object):
+
+	def __init__(self, alphabet):
+		self.fwd = {chr(i): c for i, c in enumerate(alphabet)}
+		self.inv = {c: chr(i) for i, c in enumerate(alphabet)}
+
+	def encode(self, v):
+		p = zero_padding(v)
+		t = utils.bytes_to_int(v)
+		v = utils.int_to_bytes(t, BASE)
+		return xlate(p + v, self.fwd)
+
+	def decode(self, v):
+		v = xlate(v, self.inv)
+		p = zero_padding(v)
+		t = utils.bytes_to_int(v, BASE)
+		v = utils.int_to_bytes(t)
+		return p + v
+
+	def encode_check(self, v):
+		c = four_byte_hash256(v)
+		return self.encode(v + c)
+
+	def decode_check(self, v):
+		v = self.decode(v)
+		c = four_byte_hash256(v[:-4])
+		if c != v[-4:]:
+			raise KeyError
+		return v[:-4]

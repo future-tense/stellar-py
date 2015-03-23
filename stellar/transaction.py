@@ -1,90 +1,173 @@
 
-import stellar
-import crypto
-import address
-import serialize
-from utils import *
-
-from aplus import Promise
-
 #-------------------------------------------------------------------------------
 
 tfFullyCanonicalSig = 0x80000000
 
-HASH_TX_SIGN = 'STX\0'
+#	AccountSet SetFlag/ClearFlag values
+
+asfRequireDest   = 1
+asfRequireAuth   = 2
+asfDisableMaster = 4
+
+#	account_set
+
+tfRequireDestTag  = 0x00010000
+tfOptionalDestTag = 0x00020000
+tfRequireAuth     = 0x00040000
+tfOptionalAuth    = 0x00080000
+tfDisallowSTR     = 0x00100000
+tfAllowSTR        = 0x00200000
+
+#	offer_create
+
+tfPassive           = 0x00010000
+tfImmediateOrCancel = 0x00020000
+tfFillOrKill        = 0x00040000
+tfSell              = 0x00080000
+
+#	payment
+
+tfNoRippleDirect = 0x00010000
+tfPartialPayment = 0x00020000
+tfLimitQuality   = 0x00040000
+
+#	trust_set
+
+tfSetfAuth      = 0x00010000
+tfSetNoRipple   = 0x00020000
+tfClearNoRipple = 0x00040000
+tfClearAuth     = 0x00080000
 
 #-------------------------------------------------------------------------------
 
 
-def transaction_fields_completed_promise(tx_json):
-
-	p = Promise()
-
-	if 'Flags' in tx_json:
-		tx_json['Flags'] |= tfFullyCanonicalSig
-	else:
-		tx_json['Flags'] = 0
-
-	tx_json['Fee'] = stellar.get_fee()
-
-	if 'Sequence' in tx_json:
-		p.fulfill(tx_json)
-	else:
-		def inner(res):
-			tx_json['Sequence'] = res['Sequence']
-			p.fulfill(tx_json)
-
-		p = stellar.get_account_info_promise(tx_json['Account'])
-		p.then(inner)
-
-	return p
+def _set_optionals(tx_json, kwargs, optional):
+	for key, val in kwargs.iteritems():
+		if key in optional:
+			tx_json[key] = val
 
 
-def transaction_submitted_promise(tx_blob):
+def account_merge(account, destination, sequence, fee):
 
-	p = Promise()
+	tx_json = {
+		'TransactionType':	'AccountMerge',
+		'Account':			account,
+		'Destination':		destination,
+		'Flags':			tfFullyCanonicalSig,
+		'Sequence':			sequence,
+		'Fee':				fee
+	}
 
-	def on_response(js):
-		res = js['result']
-		p.fulfill((res['engine_result'], res['engine_result_message']))
-
-	stellar.request('submit', tx_blob=tx_blob).then(on_response)
-	return p
-
-#-------------------------------------------------------------------------------
-
-
-def get_signing_hash(blob):
-	return crypto.sha512half(HASH_TX_SIGN + blob)
+	return tx_json
 
 
-def sign_transaction_blob(seed, blob):
+def account_set(account, sequence, fee, flags=0, **kwargs):
 
-	signing_hash = get_signing_hash(blob)
-	key = crypto.get_private_key(seed.data)
-	signature = crypto.sign(signing_hash, key)
-	return signature
+	optionals = {
+		'InflationDest',	#address
+		'SetAuthKey',		#address
+		'TransferRate',		#int
+		'SetFlag',			#int
+		'ClearFlag'			#int
+	}
 
+	tx_json = {
+		'TransactionType': 	'AccountSet',
+		'Account':			account,
+		'Flags':			flags | tfFullyCanonicalSig,
+		'Sequence':			sequence,
+		'Fee':				fee
+	}
 
-def sign_transaction(secret, tx_json):
+	_set_optionals(tx_json, kwargs, optionals)
 
-	seed = address.Seed.from_human(secret)
-	pubkey = address.Public.from_seed(seed)
-	tx_json['SigningPubKey'] = pubkey.data
-
-	blob = serialize.serialize_json(tx_json)
-	signature = sign_transaction_blob(seed, blob)
-	tx_json['TxnSignature'] = signature
-
-	tx_blob = serialize.serialize_json(tx_json)
-	return to_hex(tx_blob)
-
-
-def complete_transaction_fields(tx_json):
-	transaction_fields_completed_promise(tx_json).wait()
+	return tx_json
 
 
-def submit_transaction(tx_blob):
-	return transaction_submitted_promise(tx_blob).get(timeout=20)
+def offer_cancel(account, offer_sequence, sequence, fee):
+
+	tx_json = {
+		'TransactionType':	'OfferCancel',
+		'Account':			account,
+		'OfferSequence':	offer_sequence,
+		'Flags':			tfFullyCanonicalSig,
+		'Sequence':			sequence,
+		'Fee':				fee
+	}
+
+	return tx_json
+
+
+def offer_create(account, taker_gets, taker_pays, sequence, fee, flags=0, **kwargs):
+
+	optionals = {
+		'OfferSequence'		#int
+	}
+
+	tx_json = {
+		'TransactionType':	'OfferCreate',
+		'Account':			account,
+		'TakerGets':		taker_gets, 			#Amount
+		'TakerPays':		taker_pays,				#Amount
+		'Flags':			flags | tfFullyCanonicalSig,
+		'Sequence':			sequence,
+		'Fee':				fee
+	}
+
+	_set_optionals(tx_json, kwargs, optionals)
+
+	return tx_json
+
+
+def payment(account, destination, amount, sequence, fee, flags=0, **kwargs):
+
+	optionals = {
+		'DestinationTag',	#int
+		'Paths',			#path
+		'SendMax',			#amount
+		'SourceTag'			#int
+	}
+
+	tx_json = {
+		'TransactionType':	'Payment',
+		'Account': 			account,
+		'Destination': 		destination,
+		'Amount': 			amount,
+		'Flags':			flags | tfFullyCanonicalSig,
+		'Sequence':			sequence,
+		'Fee':				fee
+	}
+
+	_set_optionals(tx_json, kwargs, optionals)
+
+	return tx_json
+
+
+def set_regular_key(account, regular_key, sequence, fee):
+
+	tx_json = {
+		'TransactionType':	'SetRegularKey',
+		'Account':			account,
+		'RegularKey':		regular_key,
+		'Flags':			tfFullyCanonicalSig,
+		'Sequence':			sequence,
+		'Fee':				fee
+	}
+
+	return tx_json
+
+
+def trust_set(account, amount, sequence, fee, flags=0):
+
+	tx_json = {
+		'TransactionType': 	'TrustSet',
+		'Account':			account,
+		'LimitAmount':		amount,
+		'Flags':			flags | tfFullyCanonicalSig,
+		'Sequence':			sequence,
+		'Fee':				fee
+	}
+
+	return tx_json
 
 #-------------------------------------------------------------------------------

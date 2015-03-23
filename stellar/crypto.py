@@ -2,17 +2,13 @@
 import hashlib
 import ed25519
 
+
 def sha512half(s):
-	m = hashlib.sha512()
-	m.update(s)
-	digest = m.digest()[0:32]
-	return digest
+	return hashlib.sha512(s).digest()[0:32]
 
 
 def hash160(s):
-	m = hashlib.sha256()
-	m.update(s)
-	h = m.digest()
+	h = hashlib.sha256(s).digest()
 
 	m = hashlib.new('ripemd160')
 	m.update(h)
@@ -23,14 +19,8 @@ def hash160(s):
 def sha256hash(s):
 
 	s = s if s else ' '
-
-	m = hashlib.sha256()
-	m.update(s)
-	hash1 = m.digest()
-
-	m = hashlib.sha256()
-	m.update(hash1)
-	hash2 = m.digest()
+	hash1 = hashlib.sha256(s).digest()
+	hash2 = hashlib.sha256(hash1).digest()
 	return hash2
 
 
@@ -38,11 +28,5 @@ def sign(message, seed):
 	return ed25519.SigningKey(seed).sign(message)[0:64]
 
 
-def get_private_key(seed):
-	pk = ed25519.SigningKey(seed).get_verifying_key().vk_s
-	return seed+pk
-
-
 def get_public_key(seed):
-	pk = ed25519.SigningKey(seed).get_verifying_key().vk_s
-	return pk
+	return ed25519.SigningKey(seed).get_verifying_key().vk_s
