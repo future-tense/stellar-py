@@ -172,7 +172,7 @@ class Remote(object):
 		return self.__command('account_offers', locals())
 
 	def get_account_tx(self, account, **kwargs):
-		""" Get a list of transactions that affected this account """
+		""" Gets a list of transactions that affected this account """
 
 		return self.__command('account_tx', locals())
 
