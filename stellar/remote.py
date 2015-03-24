@@ -92,9 +92,7 @@ class Remote(object):
 
 		p = self.__request(command, **kwargs).then(on_result, on_error)
 
-		async = self.async
-		if 'async' in local['kwargs']:
-			async = local['kwargs']['async']
+		async = local['kwargs'].pop('async', self.async)
 
 		if async:
 			return p
@@ -219,11 +217,7 @@ class Remote(object):
 	def subscribe(self, **kwargs):
 		""" Listen to events """
 
-		async = self.async
-		if 'async' in kwargs:
-			async = kwargs['async']
-			del kwargs['async']
-
+		async = kwargs.pop('async', self.async)
 		p = self.server.subscribe(**kwargs)
 
 		if async:
@@ -234,11 +228,7 @@ class Remote(object):
 	def unsubscribe(self, **kwargs):
 		""" Unsubscribe from events that were previously subscribed to """
 
-		async = self.async
-		if 'async' in kwargs:
-			async = kwargs['async']
-			del kwargs['async']
-
+		async = kwargs.pop('async', self.async)
 		p = self.server.unsubscribe(**kwargs)
 
 		if async:
