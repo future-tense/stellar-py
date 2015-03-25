@@ -3,51 +3,6 @@ from server import Server
 
 #-------------------------------------------------------------------------------
 
-_optional = {
-
-	'account_currencies': {
-		'ledger_index',
-		'ledger_hash'
-	},
-
-	'account_lines': {
-		'peer',
-		'ledger_index',
-		'ledger_hash'
-	},
-
-	'account_tx': {
-		'ledger_index_min',
-		'ledger_index_max',
-		'binary',
-		'forward',
-		'limit',
-		'marker'
-	},
-
-	'book_offers': {
-		'taker',
-		'marker',
-		'ledger_index',
-		'ledger_hash'
-	},
-
-	'ledger': {
-		'full',
-		'accounts',
-		'transactions',
-		'expand',
-		'ledger_index',
-		'ledger_hash'
-	},
-
-	'tx': {
-		'binary'
-	},
-}
-
-#-------------------------------------------------------------------------------
-
 
 class Remote(object):
 
@@ -62,10 +17,30 @@ class Remote(object):
 		self.server.run()
 		self.async = async
 
-	def __request(self, command, **kwargs):
+	def _request(self, command, **kwargs):
 		return self.server.request(command, **kwargs)
 
-	def __command(self, command, local):
+	def _subscribe(self, **kwargs):
+		return self.server.subscribe(**kwargs)
+
+	def _unsubscribe(self, **kwargs):
+		return self.server.unsubscribe(**kwargs)
+
+	def __call_filtered(self, func, local):
+		""" call func with the filtered local dict as kwargs """
+
+		# filter out variables from local. 'self' for starters.
+		# default params that hasn't been set. async, if it's there
+
+		del local['self']
+
+		local = {
+			key: val
+			for key, val in local.items()
+			if val is not None
+		}
+
+		async = local.pop('async', self.async)
 
 		def on_result(res):
 			return res['result']
@@ -73,31 +48,16 @@ class Remote(object):
 		def on_error(err):
 			raise Exception(err)
 
-		#	start filling out the kwargs-dict with the required parameters
+		p = func(**local).then(on_result, on_error)
 
-		skip = {'self', 'kwargs'}
-		kwargs = {
-			key:val
-			for key, val in local.items()
-			if key not in skip
-		}
+		return p if async else p.get()
 
-		#	if the command has any optional parameters,
-		#	add all of the optional parameters that were provided
+	def __command(self, command, local):
 
-		if command in _optional:
-			for key, val in local['kwargs'].iteritems():
-				if key in _optional[command]:
-					kwargs[key] = val
+		def func(**kwargs):
+			return self._request(command, **kwargs)
 
-		p = self.__request(command, **kwargs).then(on_result, on_error)
-
-		async = local['kwargs'].pop('async', self.async)
-
-		if async:
-			return p
-		else:
-			return p.get()
+		return self.__call_filtered(func, local)
 
 	#---------------------------------------------------------------------------
 
@@ -151,47 +111,107 @@ class Remote(object):
 	#
 	#---------------------------------------------------------------------------
 
-	def get_account_currencies(self, account, **kwargs):
+	def get_account_currencies(
+			self,
+			account,
+			ledger_index=None,
+			ledger_hash=None,
+			async=None
+	):
 		""" Lists the currencies an account can send or receive """
 
 		return self.__command('account_currencies', locals())
 
-	def get_account_info(self, account, **kwargs):
+	def get_account_info(
+			self,
+			account,
+			async=None
+	):
 		""" Returns information about the given account """
 
 		return self.__command('account_info', locals())
 
-	def get_account_lines(self, account, **kwargs):
+	def get_account_lines(
+			self,
+			account,
+			peer=None,
+			ledger_index=None,
+			ledger_hash=None,
+			async=None
+	):
 		""" Gets a list of all trust lines a particular account is a part of """
 
 		return self.__command('account_lines', locals())
 
-	def get_account_offers(self, account, **kwargs):
+	def get_account_offers(
+			self,
+			account,
+			async=None
+	):
 		""" Gets a list of all the offers this account has made """
 
 		return self.__command('account_offers', locals())
 
-	def get_account_tx(self, account, **kwargs):
+	def get_account_tx(
+			self,
+			account,
+			ledger_index_min=None,
+			ledger_index_max=None,
+			binary=None,
+			forward=None,
+			limit=None,
+			marker=None,
+			async=None
+	):
 		""" Gets a list of transactions that affected this account """
 
 		return self.__command('account_tx', locals())
 
-	def get_book_offers(self, taker_gets, taker_pays, **kwargs):
+	def get_book_offers(
+			self,
+			taker_gets,
+			taker_pays,
+			taker=None,
+			marker=None,
+			ledger_index=None,
+			ledger_hash=None,
+			async=None
+	):
 		""" Returns the offers in a given orderbook """
 
 		return self.__command('book_offers', locals())
 
-	def get_ledger(self, **kwargs):
+	def get_ledger(
+			self,
+			full=None,
+			accounts=None,
+			transactions=None,
+			expand=None,
+			ledger_index=None,
+			ledger_hash=None,
+			async=None
+	):
 		""" Gets info about a particular ledger """
 
 		return self.__command('ledger', locals())
 
-	def get_static_path(self, source_account, destination_account, destination_amount, **kwargs):
+	def get_static_path(
+			self,
+			source_account,
+			destination_account,
+			destination_amount,
+			async=None
+	):
 		""" Finds a path for a transfer """
 
 		return self.__command('static_path_find', locals())
 
-	def get_transaction_entry(self, tx_hash, ledger_index, **kwargs):
+	def get_transaction_entry(
+			self,
+			tx_hash,
+			ledger_index,
+			async=None
+	):
 		"""
 		Get the details of a particular transaction
 		from a hash and a ledger index
@@ -199,39 +219,54 @@ class Remote(object):
 
 		return self.__command('transaction_entry', locals())
 
-	def get_tx(self, transaction, **kwargs):
+	def get_tx(
+			self,
+			transaction,
+			binary=None,
+			async=None
+	):
 		""" Get details of a specific transaction """
 
 		return self.__command('tx', locals())
 
-	def get_tx_history(self, start, **kwargs):
+	def get_tx_history(
+			self,
+			start,
+			async=None
+	):
 		""" Returns the last N transactions starting from the given index """
 
 		return self.__command('tx_history', locals())
 
-	def submit_transaction(self, tx_blob, **kwargs):
+	def submit_transaction(
+			self,
+			tx_blob,
+			async=None
+	):
 		""" Submits a transaction to the network """
 
 		return self.__command('submit', locals())
 
-	def subscribe(self, **kwargs):
+	def subscribe(
+			self,
+			streams=None,
+			accounts=None,
+			accounts_rt=None,
+			books=None,
+			async=None
+	):
 		""" Listen to events """
 
-		async = kwargs.pop('async', self.async)
-		p = self.server.subscribe(**kwargs)
+		return self.__call_filtered(self._subscribe, locals())
 
-		if async:
-			return p
-		else:
-			return p.get()
-
-	def unsubscribe(self, **kwargs):
+	def unsubscribe(
+			self,
+			streams=None,
+			accounts=None,
+			accounts_rt=None,
+			books=None,
+			async=None
+	):
 		""" Unsubscribe from events that were previously subscribed to """
 
-		async = kwargs.pop('async', self.async)
-		p = self.server.unsubscribe(**kwargs)
-
-		if async:
-			return p
-		else:
-			return p.get()
+		return self.__call_filtered(self._unsubscribe, locals())
