@@ -3,4 +3,5 @@ build/*
 dist/*
 stellar_py.egg-info/*
 *.pyc
+.coverage
 
