@@ -1,6 +1,6 @@
 
 def to_hex(s):
-	return ''.join(x.encode('hex') for x in s).upper()
+	return s.encode('hex').upper()
 
 
 def bytes_to_int(v, base=256):
