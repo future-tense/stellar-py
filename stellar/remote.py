@@ -24,15 +24,6 @@ class Remote(object):
 		self.server.run()
 		self.async = async
 
-	def _request(self, command, **kwargs):
-		return self.server.request(command, **kwargs)
-
-	def _subscribe(self, **kwargs):
-		return self.server.subscribe(**kwargs)
-
-	def _unsubscribe(self, **kwargs):
-		return self.server.unsubscribe(**kwargs)
-
 	def __call_filtered(self, func, local):
 		""" call func with the filtered local dict as kwargs """
 
@@ -62,7 +53,7 @@ class Remote(object):
 	def __command(self, command, local):
 
 		def func(**kwargs):
-			return self._request(command, **kwargs)
+			return self.server.request(command, **kwargs)
 
 		return self.__call_filtered(func, local)
 
@@ -78,7 +69,6 @@ class Remote(object):
 
 		def callback(tx_json):
 			...
-
 		"""
 
 		self.server.add_callback(tx_type, callback)
@@ -252,7 +242,7 @@ class Remote(object):
 	):
 		""" Listen to events """
 
-		return self.__call_filtered(self._subscribe, locals())
+		return self.__call_filtered(self.server.subscribe, locals())
 
 	def unsubscribe(
 			self,
@@ -264,4 +254,4 @@ class Remote(object):
 	):
 		""" Unsubscribe from events that were previously subscribed to """
 
-		return self.__call_filtered(self._unsubscribe, locals())
+		return self.__call_filtered(self.server.unsubscribe, locals())
