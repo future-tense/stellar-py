@@ -6,14 +6,21 @@ from server import Server
 
 class Remote(object):
 
-	def __init__(self, url, async=False):
+	def __init__(self, url, async=False, callback=None):
 		"""
-			Creates a *Remote* object, connected to a stellard server
-			located at *url*. If *async* is True, then all functions that can
-			be asynchronous, by default are so.
+		Creates a *Remote* object, connected to a stellard server
+		located at *url*. If *async* is True, then all functions that can
+		be asynchronous, by default are so. *callback* is called when the
+		network connectivity status is changed.
+
+		def callback(status):
+			if status:
+				#	connected to network
+			else:
+				#	disconnected from network
 		"""
 
-		self.server = Server(url)
+		self.server = Server(url, callback)
 		self.server.run()
 		self.async = async
 
@@ -75,18 +82,6 @@ class Remote(object):
 		"""
 
 		self.server.add_callback(tx_type, callback)
-
-	def set_sync_callback(self, callback):
-		""" Set the callback for network status updates
-
-		def callback(status):
-			if status:
-				#	connected to network
-			else:
-				#	disconnected from network
-		"""
-
-		self.server.set_sync_callback(callback)
 
 	def get_fee(self):
 		""" Get the current transaction fee for the remote connection """

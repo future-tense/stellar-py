@@ -147,7 +147,7 @@ def _on_open(self):
 
 class Server(websocket.WebSocketApp):
 
-	def __init__(self, url):
+	def __init__(self, url, callback):
 		super(Server, self).__init__(
 			url,
 			on_open		= _on_open,
@@ -165,7 +165,10 @@ class Server(websocket.WebSocketApp):
 		self.last_id = -1
 
 		self.sync_flag = None
-		self.sync_callback = lambda x: None
+		if callback:
+			self.sync_callback = callback
+		else:
+			self.sync_callback = lambda x: None
 
 		self.tx_callbacks = {
 			'AccountMerge':		[],
@@ -181,9 +184,6 @@ class Server(websocket.WebSocketApp):
 
 		self.event = threading.Event()
 		self.event.clear()
-
-	def set_sync_callback(self, callback):
-		self.sync_callback = callback
 
 	def _set_sync_status(self, flag):
 
