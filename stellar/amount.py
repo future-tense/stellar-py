@@ -1,11 +1,11 @@
 
-from decimal import *
+from decimal import Decimal
 
 
-SCALE = 1000000
+_SCALE = 1000000
 
 
-def clean_up(value):
+def _clean_up(value):
 
 	v = str(value)
 	if '.' in v:
@@ -18,20 +18,24 @@ def clean_up(value):
 class Amount(object):
 
 	def __init__(self, value, currency='STR', issuer=None):
-		self.value		= clean_up(value)
+		self.value		= _clean_up(value)
 		self.currency	= currency
 		self.issuer		= issuer
 
 	@staticmethod
 	def from_json(amount):
 		if type(amount) == dict:
+			assert 'value' in amount
+			assert 'currency' in amount
+			assert 'issuer' in amount
+
 			return Amount(
 				amount['value'],
 				amount['currency'],
 				amount['issuer']
 			)
 		else:
-			return Amount(str(Decimal(amount) / SCALE))
+			return Amount(str(Decimal(amount) / _SCALE))
 
 	def to_json(self):
 		if self.currency != 'STR':
@@ -41,4 +45,4 @@ class Amount(object):
 				'issuer':	self.issuer
 			}
 		else:
-			return str(int(Decimal(self.value) * SCALE))
+			return str(int(Decimal(self.value) * _SCALE))
