@@ -96,6 +96,27 @@ class Remote(object):
 	#
 	#---------------------------------------------------------------------------
 
+	def create_find_path(
+			self,
+			source_account,
+			destination_account,
+			destination_amount,
+			callback=None,
+			async=None
+	):
+		""" Finds a path for a transfer """
+
+		local = locals()
+		local['subcommand'] = 'create'
+		callback = local.pop('callback')
+		self.server.set_path_callback(callback)
+
+		return self.__command('find_path', local)
+
+	def close_find_path(self):
+		subcommand = 'close'
+		return self.__command('find_path', locals())
+
 	def get_account_currencies(
 			self,
 			account,

@@ -41,6 +41,7 @@ def _handle_error(self, msg_json):
 
 
 def _handle_find_path(self, msg_json):
+	self.path_callback(msg_json)
 	return True
 
 
@@ -101,7 +102,8 @@ def _handle_transaction(self, msg_json):
 	return True
 
 _msg_handlers = {
-	'find_path':	_handle_find_path,
+	'find_path':	_handle_find_path,			# stellar
+	'path_find':	_handle_find_path,			# ripple
 	'ledgerClosed':	_handle_ledger_closed,
 	'response':		_handle_response,
 	'serverStatus':	_handle_server_status,
@@ -124,6 +126,8 @@ def _on_message(self, message):
 		if msg_type in _msg_handlers:
 			res = _msg_handlers[msg_type](self, msg_json)
 			status = True
+	#	else:
+	#		print msg_type
 
 	if res:
 		self._set_sync_status(status)
@@ -164,11 +168,9 @@ class Server(websocket.WebSocketApp):
 		self.promises = {}
 		self.last_id = -1
 
+		self.set_path_callback(None)
+		self.set_sync_callback(None)
 		self.sync_flag = None
-		if callback:
-			self.sync_callback = callback
-		else:
-			self.sync_callback = lambda x: None
 
 		self.tx_callbacks = {
 			'AccountMerge':		[],
@@ -184,6 +186,12 @@ class Server(websocket.WebSocketApp):
 
 		self.event = threading.Event()
 		self.event.clear()
+
+	def set_path_callback(self, callback):
+		self.path_callback = callback if callback else lambda x: None
+
+	def set_sync_callback(self, callback):
+		self.sync_callback = callback if callback else lambda x: None
 
 	def _set_sync_status(self, flag):
 
