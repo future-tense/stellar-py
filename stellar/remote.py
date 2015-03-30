@@ -73,19 +73,6 @@ class Remote(object):
 
 		self.server.add_callback(tx_type, callback)
 
-	def get_fee(self):
-		""" Get the current transaction fee for the remote connection """
-		return self.server.get_fee()
-
-	def subscribe_fee(self):
-		""" Start subscribing to network fee updates """
-		p = self.server.subscribe(streams=['ledger', 'server'])
-		p.then(self.server.set_initial_fee)
-
-	def unsubscribe_fee(self):
-		""" Stop subscribing to network fee updates """
-		self.server.unsubscribe(streams=['ledger', 'server'])
-
 	#---------------------------------------------------------------------------
 	#
 	#	All of the following methods can be run either synchronously or
@@ -96,6 +83,13 @@ class Remote(object):
 	#
 	#---------------------------------------------------------------------------
 
+	def get_fee(self, async=None):
+		""" Get the current transaction fee for the remote connection """
+
+		async = async if async else self.async
+		p = self.server.fee_promise
+		return p if async else p.get()
+
 	def create_find_path(
 			self,
 			source_account,
@@ -104,7 +98,7 @@ class Remote(object):
 			callback=None,
 			async=None
 	):
-		""" Finds a path for a transfer """
+		""" Creates a find_path_session """
 
 		local = locals()
 		local['subcommand'] = 'create'
@@ -114,6 +108,8 @@ class Remote(object):
 		return self.__command('find_path', local)
 
 	def close_find_path(self):
+		""" Closes a find_path session """
+
 		subcommand = 'close'
 		return self.__command('find_path', locals())
 

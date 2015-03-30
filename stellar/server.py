@@ -48,6 +48,9 @@ def _handle_find_path(self, msg_json):
 def _handle_ledger_closed(self, msg_json):
 
 	self.fee.set_fee_scale(msg_json)
+	p = Promise()
+	p.fulfill(self.fee.calculate_fee())
+	self.fee_promise = p
 	return True
 
 
@@ -83,6 +86,9 @@ def _handle_response(self, msg_json):
 def _handle_server_status(self, msg_json):
 
 	self.fee.set_load_scale(msg_json)
+	p = Promise()
+	p.fulfill(self.fee.calculate_fee())
+	self.fee_promise = p
 	return True
 
 
@@ -183,6 +189,7 @@ class Server(websocket.WebSocketApp):
 		}
 
 		self.__clear_subscriptions()
+		self.subscribe_fee()
 
 		self.event = threading.Event()
 		self.event.clear()
@@ -258,11 +265,11 @@ class Server(websocket.WebSocketApp):
 	#	fees
 	#
 
-	def set_initial_fee(self, tx_json):
-		self.fee.set_initial_fee(tx_json)
-
-	def get_fee(self):
-		return self.fee.get()
+	def subscribe_fee(self):
+		""" Start subscribing to network fee updates """
+		p = self.subscribe(streams=['ledger', 'server'])\
+			.then(self.fee.set_initial_fee)
+		self.fee_promise = p
 
 	#
 	#	subscription management

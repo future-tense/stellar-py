@@ -5,7 +5,7 @@ class Fee(object):
 		self.default_fee = 10
 		self.fee_cushion = 1.2
 
-	def get(self):
+	def calculate_fee(self):
 		return int(self.default_fee * self.fee_scale * self.load_scale)
 
 	def set_fee_scale(self, tx):
@@ -24,3 +24,5 @@ class Fee(object):
 		result = tx_json['result']
 		self.set_fee_scale(result)
 		self.set_load_scale(result)
+		return self.calculate_fee()
+
