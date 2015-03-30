@@ -90,6 +90,16 @@ class Remote(object):
 		p = self.server.fee_promise
 		return p if async else p.get()
 
+	def get_sequence_number(self, account, async=None):
+		""" Get the current sequence number for this account """
+
+		def get_seq(res):
+			return res['account_data']['Sequence']
+
+		async = async if async else self.async
+		p = self.get_account_info(account, async=True).then(get_seq)
+		return p if async else p.get()
+
 	def create_find_path(
 			self,
 			source_account,
