@@ -1,5 +1,10 @@
 
+from aplus import listPromise
+
 from server import Server
+import transaction
+import local
+import address
 
 #-------------------------------------------------------------------------------
 
@@ -56,6 +61,13 @@ class Remote(object):
 			return self.server.request(command, **kwargs)
 
 		return self.__call_filtered(func, local)
+
+	def __hl_command(self, account, on_success, async):
+		seq = self.get_sequence_number(account, async=True)
+		fee = self.get_fee(async=True)
+		p = listPromise([seq, fee]).then(on_success)
+		async = async if async else self.async
+		return p if async else p.get()
 
 	#---------------------------------------------------------------------------
 
@@ -282,3 +294,149 @@ class Remote(object):
 		""" Unsubscribe from events that were previously subscribed to """
 
 		return self.__call_filtered(self.server.unsubscribe, locals())
+
+	#---------------------------------------------------------------------------
+
+	def change_account_settings(self, secret, account, flags=0,
+								async=None, **kwargs):
+		""" Changes internal account settings. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.account_set(
+				account,
+				seq,
+				fee,
+				flags,
+				**kwargs
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)
+
+	def cancel_offer(self, secret, account, offer_sequence, async=None):
+		""" Cancels a previously issued offer. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.offer_cancel(
+				account,
+				offer_sequence,
+				seq,
+				fee
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)
+
+	def create_offer(self, secret, account, taker_gets, taker_pays, flags=0,
+					 async=None, **kwargs):
+		""" Creates an offer to trade. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.offer_create(
+				account,
+				taker_gets,
+				taker_pays,
+				seq,
+				fee,
+				flags,
+				**kwargs
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)
+
+	def merge_accounts(self, secret, account, destination, async=None):
+		""" Merges an account into a destination account. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.account_merge(
+				account,
+				destination,
+				seq,
+				fee
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)
+
+	def send_payment(self, secret, account, destination, amount, flags=0,
+					 async=None, **kwargs):
+		""" Sends a payment to a destination account. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.payment(
+				account,
+				destination,
+				amount,
+				seq,
+				fee,
+				flags,
+				**kwargs
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)
+
+	def set_regular_key(self, secret, account, regular_key, async=None):
+		""" Sets the regular key for an account. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.set_regular_key(
+				account,
+				regular_key,
+				seq,
+				fee
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)
+
+	def set_trust(self, secret, account, amount, flags=0, async=None):
+		""" Creates a trust line, or modifies an existing one. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.trust_set(
+				account,
+				amount,
+				seq,
+				fee,
+				flags
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)

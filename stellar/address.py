@@ -1,5 +1,6 @@
 
 import stellar.base58
+import crypto
 
 #-------------------------------------------------------------------------------
 
@@ -42,5 +43,15 @@ def seed_to_human(seed):
 
 def seed_from_human(seed):
 	return from_human(_VER_SEED, seed)
+
+
+def account_from_seed(secret):
+
+	seed = seed_from_human(secret)
+	public_key = crypto.get_public_key(seed)
+	account = crypto.hash160(public_key)
+	account = account_to_human(account)
+	return account
+
 
 #-------------------------------------------------------------------------------
