@@ -96,11 +96,11 @@ get_tx_history(start, async=None)
 ### Performing transactions
 
 ```Python
-change_account_settings(secret, account, flags=0, async=None, **kwargs)
 cancel_offer(secret, account, offer_sequence, async=None)
 create_offer(secret, account, taker_gets, taker_pays, flags=0, async=None, **kwargs)
 merge_accounts(secret, account, destination, async=None)
 send_payment(secret, account, destination, amount, flags=0, async=None, **kwargs)
+set_options(secret, account, flags=0, async=None, **kwargs)
 set_regular_key(secret, account, regular_key, async=None)
 set_trust(secret, account, amount, flags=0, async=None)
 ```

@@ -297,27 +297,6 @@ class Remote(object):
 
 	#---------------------------------------------------------------------------
 
-	def change_account_settings(self, secret, account, flags=0,
-								async=None, **kwargs):
-		""" Changes internal account settings. """
-
-		if not account:
-			account = address.account_from_seed(secret)
-
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.account_set(
-				account,
-				seq,
-				fee,
-				flags,
-				**kwargs
-			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
-
-		return self.__hl_command(account, on_success, async)
-
 	def cancel_offer(self, secret, account, offer_sequence, async=None):
 		""" Cancels a previously issued offer. """
 
@@ -392,6 +371,27 @@ class Remote(object):
 				account,
 				destination,
 				amount,
+				seq,
+				fee,
+				flags,
+				**kwargs
+			)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
+		return self.__hl_command(account, on_success, async)
+
+	def set_options(self, secret, account, flags=0,
+								async=None, **kwargs):
+		""" Changes internal account settings. """
+
+		if not account:
+			account = address.account_from_seed(secret)
+
+		def on_success(res):
+			seq, fee = res
+			tx_json = transaction.account_set(
+				account,
 				seq,
 				fee,
 				flags,
