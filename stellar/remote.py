@@ -74,7 +74,7 @@ class Remote(object):
 	def cancel(self, promise):
 		""" Cancels a promise """
 
-		return self.server.cancel(promise)
+		self.server.cancel(promise)
 
 	def add_callback(self, tx_type, callback):
 		""" Adds a callback to the specified transaction type
@@ -380,7 +380,7 @@ class Remote(object):
 		return self.__hl_command(account, on_success, async)
 
 	def set_options(self, secret, account, async=None, **kwargs):
-		""" Changes internal account settings. """
+		""" Sets internal account options. """
 
 		if not account:
 			account = address.account_from_seed(secret)
