@@ -148,11 +148,15 @@ def set_regular_key(account, regular_key, sequence, fee):
 	tx_json = {
 		'TransactionType':	'SetRegularKey',
 		'Account':			account,
-		'RegularKey':		regular_key,
 		'Flags':			tfFullyCanonicalSig,
 		'Sequence':			sequence,
 		'Fee':				fee
 	}
+
+	#	If none, remove regular key
+
+	if regular_key:
+		tx_json['RegularKey'] = regular_key
 
 	return tx_json
 
