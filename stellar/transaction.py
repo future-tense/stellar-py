@@ -61,25 +61,26 @@ def account_merge(account, destination, sequence, fee):
 	return tx_json
 
 
-def account_set(account, sequence, fee, flags=0, **kwargs):
+def account_set(account, sequence, fee, **kwargs):
 
 	optionals = {
 		'InflationDest',	#address
 		'SetAuthKey',		#address
 		'TransferRate',		#int
 		'SetFlag',			#int
-		'ClearFlag'			#int
+		'ClearFlag',		#int
+		'Flags',			#int
 	}
 
 	tx_json = {
 		'TransactionType': 	'AccountSet',
 		'Account':			account,
-		'Flags':			flags | tfFullyCanonicalSig,
 		'Sequence':			sequence,
 		'Fee':				fee
 	}
 
 	_set_optionals(tx_json, kwargs, optionals)
+	tx_json['Flags'] = tx_json.pop('Flags', 0) | tfFullyCanonicalSig
 
 	return tx_json
 
@@ -98,10 +99,11 @@ def offer_cancel(account, offer_sequence, sequence, fee):
 	return tx_json
 
 
-def offer_create(account, taker_gets, taker_pays, sequence, fee, flags=0, **kwargs):
+def offer_create(account, taker_gets, taker_pays, sequence, fee, **kwargs):
 
 	optionals = {
-		'OfferSequence'		#int
+		'OfferSequence',	#int
+		'Flags',			#int
 	}
 
 	tx_json = {
@@ -109,23 +111,24 @@ def offer_create(account, taker_gets, taker_pays, sequence, fee, flags=0, **kwar
 		'Account':			account,
 		'TakerGets':		taker_gets, 			#Amount
 		'TakerPays':		taker_pays,				#Amount
-		'Flags':			flags | tfFullyCanonicalSig,
 		'Sequence':			sequence,
 		'Fee':				fee
 	}
 
 	_set_optionals(tx_json, kwargs, optionals)
+	tx_json['Flags'] = tx_json.pop('Flags', 0) | tfFullyCanonicalSig
 
 	return tx_json
 
 
-def payment(account, destination, amount, sequence, fee, flags=0, **kwargs):
+def payment(account, destination, amount, sequence, fee, **kwargs):
 
 	optionals = {
 		'DestinationTag',	#int
 		'Paths',			#path
 		'SendMax',			#amount
-		'SourceTag'			#int
+		'SourceTag',		#int
+		'Flags',			#int
 	}
 
 	tx_json = {
@@ -133,12 +136,12 @@ def payment(account, destination, amount, sequence, fee, flags=0, **kwargs):
 		'Account': 			account,
 		'Destination': 		destination,
 		'Amount': 			amount,
-		'Flags':			flags | tfFullyCanonicalSig,
 		'Sequence':			sequence,
 		'Fee':				fee
 	}
 
 	_set_optionals(tx_json, kwargs, optionals)
+	tx_json['Flags'] = tx_json.pop('Flags', 0) | tfFullyCanonicalSig
 
 	return tx_json
 
@@ -161,16 +164,22 @@ def set_regular_key(account, regular_key, sequence, fee):
 	return tx_json
 
 
-def trust_set(account, amount, sequence, fee, flags=0):
+def trust_set(account, amount, sequence, fee, **kwargs):
+
+	optionals = {
+		'Flags',			#int
+	}
 
 	tx_json = {
 		'TransactionType': 	'TrustSet',
 		'Account':			account,
 		'LimitAmount':		amount,
-		'Flags':			flags | tfFullyCanonicalSig,
 		'Sequence':			sequence,
 		'Fee':				fee
 	}
+
+	_set_optionals(tx_json, kwargs, optionals)
+	tx_json['Flags'] = tx_json.pop('Flags', 0) | tfFullyCanonicalSig
 
 	return tx_json
 

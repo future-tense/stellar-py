@@ -316,7 +316,7 @@ class Remote(object):
 
 		return self.__hl_command(account, on_success, async)
 
-	def create_offer(self, secret, account, taker_gets, taker_pays, flags=0,
+	def create_offer(self, secret, account, taker_gets, taker_pays,
 					 async=None, **kwargs):
 		""" Creates an offer to trade. """
 
@@ -331,7 +331,6 @@ class Remote(object):
 				taker_pays,
 				seq,
 				fee,
-				flags,
 				**kwargs
 			)
 			tx_blob = local.sign(tx_json, secret)
@@ -358,7 +357,7 @@ class Remote(object):
 
 		return self.__hl_command(account, on_success, async)
 
-	def send_payment(self, secret, account, destination, amount, flags=0,
+	def send_payment(self, secret, account, destination, amount,
 					 async=None, **kwargs):
 		""" Sends a payment to a destination account. """
 
@@ -373,7 +372,6 @@ class Remote(object):
 				amount,
 				seq,
 				fee,
-				flags,
 				**kwargs
 			)
 			tx_blob = local.sign(tx_json, secret)
@@ -381,8 +379,7 @@ class Remote(object):
 
 		return self.__hl_command(account, on_success, async)
 
-	def set_options(self, secret, account, flags=0,
-								async=None, **kwargs):
+	def set_options(self, secret, account, async=None, **kwargs):
 		""" Changes internal account settings. """
 
 		if not account:
@@ -394,7 +391,6 @@ class Remote(object):
 				account,
 				seq,
 				fee,
-				flags,
 				**kwargs
 			)
 			tx_blob = local.sign(tx_json, secret)
@@ -421,7 +417,7 @@ class Remote(object):
 
 		return self.__hl_command(account, on_success, async)
 
-	def set_trust(self, secret, account, amount, flags=0, async=None):
+	def set_trust(self, secret, account, amount, async=None, **kwargs):
 		""" Creates a trust line, or modifies an existing one. """
 
 		if not account:
@@ -434,7 +430,7 @@ class Remote(object):
 				amount,
 				seq,
 				fee,
-				flags
+				**kwargs
 			)
 			tx_blob = local.sign(tx_json, secret)
 			return self.submit_transaction(tx_blob, async=True)

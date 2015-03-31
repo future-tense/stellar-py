@@ -97,12 +97,12 @@ get_tx_history(start, async=None)
 
 ```Python
 cancel_offer(secret, account, offer_sequence, async=None)
-create_offer(secret, account, taker_gets, taker_pays, flags=0, async=None, **kwargs)
+create_offer(secret, account, taker_gets, taker_pays, async=None, **kwargs)
 merge_accounts(secret, account, destination, async=None)
-send_payment(secret, account, destination, amount, flags=0, async=None, **kwargs)
-set_options(secret, account, flags=0, async=None, **kwargs)
+send_payment(secret, account, destination, amount, async=None, **kwargs)
+set_options(secret, account, async=None, **kwargs)
 set_regular_key(secret, account, regular_key, async=None)
-set_trust(secret, account, amount, flags=0, async=None)
+set_trust(secret, account, amount, async=None, **kwargs)
 ```
 
 ### Managing subscriptions
@@ -168,10 +168,10 @@ through kwargs. All amounts are in `stellar.Amount`s
 
 ```python
 tx_json = account_merge(account, destination, sequence, fee)
-tx_json = account_set(account, sequence, fee, flags=0, **kwargs)
+tx_json = account_set(account, sequence, fee, **kwargs)
 tx_json = offer_cancel(account, offer_sequence, sequence, fee)
-tx_json = offer_create(account, taker_gets, taker_pays, sequence, fee, flags=0, **kwargs)
-tx_json = payment(account, destination, amount, sequence, fee, flags=0, **kwargs)
+tx_json = offer_create(account, taker_gets, taker_pays, sequence, fee, **kwargs)
+tx_json = payment(account, destination, amount, sequence, fee, **kwargs)
 tx_json = set_regular_key(account, regular_key, sequence, fee)
-tx_json = trust_set(account, amount, sequence, fee, flags=0)
+tx_json = trust_set(account, amount, sequence, fee, **kwargs)
 ```
