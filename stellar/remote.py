@@ -32,18 +32,11 @@ class Remote(object):
 	def __call_filtered(self, func, local):
 		""" call func with the filtered local dict as kwargs """
 
-		# filter out variables from local. 'self' for starters.
-		# default params that hasn't been set. async, if it's there
+		# filter out variables from local
 
 		del local['self']
-
-		local = {
-			key: val
-			for key, val in local.items()
-			if val is not None
-		}
-
-		async = local.pop('async', self.async)
+		async = local.pop('async')
+		local.update(local.pop('kwargs', {}))
 
 		def on_result(res):
 			return res['result']
@@ -51,8 +44,8 @@ class Remote(object):
 		def on_error(err):
 			raise Exception(err)
 
+		async = async if async else self.async
 		p = func(**local).then(on_result, on_error)
-
 		return p if async else p.get()
 
 	def __command(self, command, local):
@@ -117,8 +110,9 @@ class Remote(object):
 			source_account,
 			destination_account,
 			destination_amount,
-			callback=None,
-			async=None
+			callback,
+			async=None,
+			**kwargs
 	):
 		""" Creates a find_path_session """
 
@@ -129,7 +123,7 @@ class Remote(object):
 
 		return self.__command('find_path', local)
 
-	def close_find_path(self):
+	def close_find_path(self, async=None):
 		""" Closes a find_path session """
 
 		subcommand = 'close'
@@ -138,9 +132,8 @@ class Remote(object):
 	def get_account_currencies(
 			self,
 			account,
-			ledger_index=None,
-			ledger_hash=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Lists the currencies an account can send or receive """
 
@@ -158,10 +151,8 @@ class Remote(object):
 	def get_account_lines(
 			self,
 			account,
-			peer=None,
-			ledger_index=None,
-			ledger_hash=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Gets a list of all trust lines a particular account is a part of """
 
@@ -179,13 +170,8 @@ class Remote(object):
 	def get_account_tx(
 			self,
 			account,
-			ledger_index_min=None,
-			ledger_index_max=None,
-			binary=None,
-			forward=None,
-			limit=None,
-			marker=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Gets a list of transactions that affected this account """
 
@@ -195,11 +181,8 @@ class Remote(object):
 			self,
 			taker_gets,
 			taker_pays,
-			taker=None,
-			marker=None,
-			ledger_index=None,
-			ledger_hash=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Returns the offers in a given orderbook """
 
@@ -207,13 +190,8 @@ class Remote(object):
 
 	def get_ledger(
 			self,
-			full=None,
-			accounts=None,
-			transactions=None,
-			expand=None,
-			ledger_index=None,
-			ledger_hash=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Gets info about a particular ledger """
 
@@ -246,8 +224,8 @@ class Remote(object):
 	def get_tx(
 			self,
 			transaction,
-			binary=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Get details of a specific transaction """
 
@@ -273,11 +251,8 @@ class Remote(object):
 
 	def subscribe(
 			self,
-			streams=None,
-			accounts=None,
-			accounts_rt=None,
-			books=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Listen to events """
 
@@ -285,11 +260,8 @@ class Remote(object):
 
 	def unsubscribe(
 			self,
-			streams=None,
-			accounts=None,
-			accounts_rt=None,
-			books=None,
-			async=None
+			async=None,
+			**kwargs
 	):
 		""" Unsubscribe from events that were previously subscribed to """
 

@@ -15,7 +15,7 @@ class DummyPromise(object):
 		self.failure = not_ok
 		return self
 
-	def resolve(self, res):
+	def fulfill(self, res):
 		if hasattr(self, 'success'):
 			self.callback = self.success
 		self.value = res
@@ -42,7 +42,7 @@ class RemotePromiseTest(unittest.TestCase):
 	def test_promise_ok(self):
 		self.server.request.return_value = DummyPromise()
 		p = self.remote.get_account_currencies('account', async=True)
-		p.resolve({'result':'ok'})
+		p.fulfill({'result':'ok'})
 		self.assertEqual(p.get(), 'ok')
 
 	def test_promise_not_ok(self):
@@ -54,7 +54,7 @@ class RemotePromiseTest(unittest.TestCase):
 	def test_get_fee(self):
 		self.server.fee_promise = DummyPromise()
 		p = self.remote.get_fee(async=True)
-		p.resolve(10)
+		p.fulfill(10)
 		self.assertEqual(p.get(), 10)
 
 
@@ -123,7 +123,7 @@ class RemoteParamTest(unittest.TestCase):
 		)
 
 	def test_create_find_path(self):
-		self.remote.create_find_path('source', 'dest', 'dest_amount')
+		self.remote.create_find_path('source', 'dest', 'dest_amount', None)
 		self.server.request.assert_called_with(
 			'find_path',
 			subcommand='create',

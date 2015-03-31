@@ -67,29 +67,29 @@ def callback(status):
 ### Getting information about accounts
 
 ```Python
-get_account_currencies(account, ledger_index=None, ledger_hash=None, async=None)
+get_account_currencies(account, async=None, **kwargs)
 get_account_info(account, async=None)
-get_account_lines(account, peer=None, ledger_index=None, ledger_hash=None, async=None)
+get_account_lines(account, async=None, **kwargs)
 get_account_offers(account, async=None)
 ```
 
 ### Getting information about order books
 
 ```Python
-get_book_offers(taker_gets, taker_pays, taker=None, marker=None, ledger_index=None, ledger_hash=None, async=None)
+get_book_offers(taker_gets, taker_pays, async=None, **kwargs)
 ```
 
 ### Getting information about ledgers
 
 ```Python
-get_ledger(full=None, accounts=None, transactions=None, expand=None, ledger_index=None, ledger_hash=None, async=None)
+get_ledger(async=None, **kwargs)
 ```
 
 ### Getting information about transactions
 
 ```Python
 get_transaction_entry(tx_hash, ledger_index, async=None)
-get_tx(transaction, binary=None, async=None)
+get_tx(transaction, async=None, **kwargs)
 get_tx_history(start, async=None)
 ```
 
@@ -108,8 +108,8 @@ set_trust(secret, account, amount, async=None, **kwargs)
 ### Managing subscriptions
 
 ```Python
-subscribe(streams=None, accounts=None, accounts_rt=None, books=None, async=None)
-unsubscribe(streams=None, accounts=None, accounts_rt=None, books=None, async=None)
+subscribe(async=None, **kwargs)
+unsubscribe(async=None, **kwargs)
 add_callback(tx_type, callback)
 ```
 
@@ -117,8 +117,8 @@ add_callback(tx_type, callback)
 
 ```Python
 get_static_path(source_account, destination_account, destination_amount, async=None)
-create_find_path(source_account, destination_account, destination_amount, callback=None, async=None)
-close_find_path()
+create_find_path(source_account, destination_account, destination_amount, callback, async=None)
+close_find_path(async=None)
 ```
 
 ### Low-level methods
