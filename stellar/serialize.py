@@ -23,7 +23,7 @@ FIELD_MAP = {
 	'SetAuthKey':		(8, 10),			#stellar
 	'SetFlag':			(2, 33),
 	'SigningPubKey':	(7, 3),
-	'SourceTag':		(2, 2),
+	'SourceTag':		(2, 3),
 	'TakerGets':		(6, 5),
 	'TakerPays':		(6, 4),
 	'TransactionType':	(1, 2),
