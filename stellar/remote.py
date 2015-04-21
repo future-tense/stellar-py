@@ -55,10 +55,17 @@ class Remote(object):
 
 		return self.__call_filtered(func, local)
 
-	def __hl_command(self, account, on_success, async):
+	def __transaction(self, secret, account, on_success, async):
+
+		def on_promise(seq_fee):
+			tx_json = on_success(seq_fee)
+			tx_blob = local.sign(tx_json, secret)
+			return self.submit_transaction(tx_blob, async=True)
+
 		seq = self.get_sequence_number(account, async=True)
 		fee = self.get_fee(async=True)
-		p = listPromise([seq, fee]).then(on_success)
+		p = listPromise([seq, fee]).then(on_promise)
+
 		async = async if async else self.async
 		return p if async else p.get()
 
@@ -275,18 +282,14 @@ class Remote(object):
 		if not account:
 			account = address.account_from_seed(secret)
 
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.offer_cancel(
+		def on_success(seq_fee):
+			return transaction.offer_cancel(
 				account,
 				offer_sequence,
-				seq,
-				fee
+				*seq_fee
 			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
 
-		return self.__hl_command(account, on_success, async)
+		return self.__transaction(secret, account, on_success, async)
 
 	def create_offer(self, secret, account, taker_gets, taker_pays,
 					 async=None, **kwargs):
@@ -295,20 +298,16 @@ class Remote(object):
 		if not account:
 			account = address.account_from_seed(secret)
 
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.offer_create(
+		def on_success(seq_fee):
+			return transaction.offer_create(
 				account,
 				taker_gets,
 				taker_pays,
-				seq,
-				fee,
+				*seq_fee
 				**kwargs
 			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
 
-		return self.__hl_command(account, on_success, async)
+		return self.__transaction(secret, account, on_success, async)
 
 	def merge_accounts(self, secret, account, destination, async=None):
 		""" Merges an account into a destination account. """
@@ -316,18 +315,14 @@ class Remote(object):
 		if not account:
 			account = address.account_from_seed(secret)
 
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.account_merge(
+		def on_success(seq_fee):
+			return transaction.account_merge(
 				account,
 				destination,
-				seq,
-				fee
+				*seq_fee
 			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
 
-		return self.__hl_command(account, on_success, async)
+		return self.__transaction(secret, account, on_success, async)
 
 	def send_payment(self, secret, account, destination, amount,
 					 async=None, **kwargs):
@@ -336,20 +331,16 @@ class Remote(object):
 		if not account:
 			account = address.account_from_seed(secret)
 
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.payment(
+		def on_success(seq_fee):
+			return transaction.payment(
 				account,
 				destination,
 				amount,
-				seq,
-				fee,
+				*seq_fee,
 				**kwargs
 			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
 
-		return self.__hl_command(account, on_success, async)
+		return self.__transaction(secret, account, on_success, async)
 
 	def set_options(self, secret, account, async=None, **kwargs):
 		""" Sets internal account options. """
@@ -357,18 +348,14 @@ class Remote(object):
 		if not account:
 			account = address.account_from_seed(secret)
 
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.account_set(
+		def on_success(seq_fee):
+			return transaction.account_set(
 				account,
-				seq,
-				fee,
+				*seq_fee,
 				**kwargs
 			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
 
-		return self.__hl_command(account, on_success, async)
+		return self.__transaction(secret, account, on_success, async)
 
 	def set_regular_key(self, secret, account, regular_key, async=None):
 		""" Sets the regular key for an account. """
@@ -376,18 +363,14 @@ class Remote(object):
 		if not account:
 			account = address.account_from_seed(secret)
 
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.set_regular_key(
+		def on_success(seq_fee):
+			return transaction.set_regular_key(
 				account,
 				regular_key,
-				seq,
-				fee
+				*seq_fee
 			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
 
-		return self.__hl_command(account, on_success, async)
+		return self.__transaction(secret, account, on_success, async)
 
 	def set_trust(self, secret, account, amount, async=None, **kwargs):
 		""" Creates a trust line, or modifies an existing one. """
@@ -395,16 +378,12 @@ class Remote(object):
 		if not account:
 			account = address.account_from_seed(secret)
 
-		def on_success(res):
-			seq, fee = res
-			tx_json = transaction.trust_set(
+		def on_success(seq_fee):
+			return transaction.trust_set(
 				account,
 				amount,
-				seq,
-				fee,
+				*seq_fee,
 				**kwargs
 			)
-			tx_blob = local.sign(tx_json, secret)
-			return self.submit_transaction(tx_blob, async=True)
 
-		return self.__hl_command(account, on_success, async)
+		return self.__transaction(secret, account, on_success, async)
