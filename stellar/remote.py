@@ -11,7 +11,7 @@ import address
 
 class Remote(object):
 
-	def __init__(self, url, async=False, callback=None):
+	def __init__(self, url, async=False, callback=None, testnet=False):
 		"""
 		Creates a *Remote* object, connected to a stellard server
 		located at *url*. If *async* is True, then all functions that can
@@ -28,6 +28,7 @@ class Remote(object):
 		self.server = Server(url, callback)
 		self.server.run()
 		self.async = async
+		self.testnet = testnet
 
 	def __call_filtered(self, func, local):
 		""" call func with the filtered local dict as kwargs """
@@ -59,7 +60,7 @@ class Remote(object):
 
 		def on_promise(seq_fee):
 			tx_json = on_success(seq_fee)
-			tx_blob = local.sign(tx_json, secret)
+			tx_blob = local.sign(tx_json, secret, self.testnet)
 			return self.submit_transaction(tx_blob, async=True)
 
 		seq = self.get_sequence_number(account, async=True)

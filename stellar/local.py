@@ -18,22 +18,24 @@ def generate_keypair():
 #-------------------------------------------------------------------------------
 
 _HASH_TX_SIGN = 'STX\0'
+_HASH_TX_SIGN_TESTNET = 'stx\0'
 
 #-------------------------------------------------------------------------------
 
 
-def _get_signing_hash(blob):
-	return crypto.sha512half(_HASH_TX_SIGN + blob)
+def _get_signing_hash(blob, test=False):
+	prefix = _HASH_TX_SIGN_TESTNET if test else _HASH_TX_SIGN
+	return crypto.sha512half(prefix + blob)
 
 
-def _sign_blob(tx_blob, seed):
+def _sign_blob(tx_blob, seed, test=False):
 
-	signing_hash = _get_signing_hash(tx_blob)
+	signing_hash = _get_signing_hash(tx_blob, test)
 	signature = crypto.sign(signing_hash, seed)
 	return signature
 
 
-def sign(tx_json, secret):
+def sign(tx_json, secret, test=False):
 	""" Signs a transaction with the secret and returns a tx_blob """
 
 	seed = address.seed_from_human(secret)
@@ -41,7 +43,7 @@ def sign(tx_json, secret):
 	tx_json['SigningPubKey'] = pubkey
 
 	tx_blob = serialize.serialize_json(tx_json)
-	signature = _sign_blob(tx_blob, seed)
+	signature = _sign_blob(tx_blob, seed, test)
 	tx_json['TxnSignature'] = signature
 
 	tx_blob = serialize.serialize_json(tx_json)
