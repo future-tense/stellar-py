@@ -13,8 +13,6 @@ from aplus import Promise
 
 def _handle_error(self, msg_json):
 
-#	print json.dumps(msg_json, sort_keys=True, indent=2, separators=(',', ': '))
-
 	tid = msg_json['id']
 	if tid in self.requests:
 
@@ -29,14 +27,11 @@ def _handle_error(self, msg_json):
 		del self.requests[tid]
 		del self.promises[command]
 
-	#	print promise, command
 		promise.reject(Exception(error_msg))
 
 		if msg_json['error'] == 'noNetwork':
-			print "out of sync", command
 			return True
 		else:
-#	#	#	print command
 			return False
 
 
@@ -74,7 +69,6 @@ def _handle_response(self, msg_json):
 
 		del self.requests[tid]
 		del self.promises[command_key]
-#	#	print request['command']
 
 		promise.fulfill(msg_json)
 		return command not in _skiplist
@@ -222,13 +216,11 @@ class Server(websocket.WebSocketApp):
 		tid = self.__get_id()
 		kwargs['id'] = tid
 		js = json.dumps(kwargs)
-#	#	print command, tid
 
 		if self.is_open:
 			self.send(js)
 		else:
 			self.queue.append(js)
-##	#	if self.sock and
 
 		p = Promise()
 		request = {
@@ -350,4 +342,3 @@ class Server(websocket.WebSocketApp):
 		self.end_ping_thread = True
 		self.event.set()
 		self.ping_thread.join()
-
