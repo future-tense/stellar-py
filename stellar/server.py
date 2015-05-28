@@ -111,58 +111,68 @@ _msg_handlers = {
 }
 
 
-def _on_message(self, message):
+def _on_message(ws, message):
 
-	self.event.set()
+	ws.self.event.set()
 	msg_json = json.loads(message)
 
 	res = False
 	if 'error' in msg_json:
-		res = _handle_error(self, msg_json)
+		res = _handle_error(ws.self, msg_json)
 		status = False
 
 	else:
 		msg_type = msg_json['type']
 		if msg_type in _msg_handlers:
-			res = _msg_handlers[msg_type](self, msg_json)
+			res = _msg_handlers[msg_type](ws.self, msg_json)
 			status = True
 	#	else:
 	#		print msg_type
 
 	if res:
-		self._set_sync_status(status)
+		ws.self._set_sync_status(status)
 
 
-def _on_error(self, error):
+def _on_error(ws, error):
 #	print error
 	pass
 
 
-def _on_close(self):
+def _on_close(ws):
 	print "websocket closed"
-#	pass
 
 
-def _on_open(self):
-	self.is_open = True
-	for tx in self.queue:
-		self.send(tx)
+def _on_open(ws):
+	ws.self.is_open = True
+	for tx in ws.self.queue:
+		ws.send(tx)
 
 
-class Server(websocket.WebSocketApp):
+class Server(object):
 
-	def __init__(self, url, callback):
-		super(Server, self).__init__(
-			url,
+	def __open_websocket(self):
+
+		print "<open_websocket>"
+		self.is_open = False
+		self.ws = websocket.WebSocketApp(
+			self.url,
 			on_open		= _on_open,
 			on_message	= _on_message,
 			on_error	= _on_error,
 			on_close	= _on_close,
 		)
+		self.ws.self = self
+
+	def send(self, data):
+		self.ws.send(data)
+
+	def __init__(self, url, callback):
+
+		self.url = url
+		self.__open_websocket()
 
 		self.fee = Fee()
 		self.queue = []
-		self.is_open = False
 
 		self.requests = {}
 		self.promises = {}
@@ -247,8 +257,9 @@ class Server(websocket.WebSocketApp):
 
 			while True:
 				self.__start_ping_thread()
-				self.run_forever()
+				self.ws.run_forever()
 				self.__stop_ping_thread()
+				self.__open_websocket()
 				self.__resubscribe()
 
 		thread.start_new_thread(thread_target, ())
